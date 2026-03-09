@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -d /data2/home/vcivale/genome-cgr-embedding/*/)",
+      "Bash(wc -l /data2/home/vcivale/genome-cgr-embedding/core/*.py /data2/home/vcivale/genome-cgr-embedding/utils/*.py /data2/home/vcivale/genome-cgr-embedding/tests/*.py)",
+      "Bash(find /data2/home/vcivale/genome-cgr-embedding/benchmarks_repo/DNALONGBENCH/experiments -name \"README.md\" -exec head -100 {} +)",
+      "Bash(grep -h \"^import\\\\|^from\" /data2/home/vcivale/genome-cgr-embedding/core/*.py /data2/home/vcivale/genome-cgr-embedding/pipeline/*.py /data2/home/vcivale/genome-cgr-embedding/utils/*.py)",
+      "Bash(ls -1 /data2/home/vcivale/genome-cgr-embedding/benchmarks_repo/dna_foundation_benchmark/job_scripts/*.py)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(sed 's/\\\\.py$//')",
+      "Bash(ls -1 /data2/home/vcivale/genome-cgr-embedding/benchmarks_repo/dna_foundation_benchmark/analysis/*.py)",
+      "Read(//benchmarks_repo/dna_foundation_benchmark/**)",
+      "Bash(python -c \"from pipeline.dnafoundation_loader import discover_datasets, load_dataset_csv; ds = discover_datasets\\(\\); print\\(f''{len\\(ds\\)} dataset trovati''\\)\")",
+      "Bash(python benchmark_dnafoundation.py --list-tasks)",
+      "Bash(python -c \"from pipeline import discover_datasets, extract_kmer_features, train_and_evaluate; print\\(''OK''\\)\")"
+    ],
+    "additionalDirectories": [
+      "/data2/home/vcivale/genome-cgr-embedding"
+    ]
+  }
+}
