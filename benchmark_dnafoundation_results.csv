@@ -1,0 +1,7 @@
+task,method,k,grid_size,feature_dim,train_size,test_size,n_classes,mcc,auroc,f1_macro,accuracy,best_params,timestamp
+EMP/Yeast_H3,kmer_rf,4,128,256,10475,4490,2,0.6550823114389639,0.912006154457018,0.8273394376903471,0.8276169265033407,"{'max_depth': None, 'max_features': 'sqrt', 'min_samples_split': 2, 'n_estimators': 1000}",2026-03-09T16:28:28.436559
+EMP/Yeast_H3,kmer_rf,5,128,1024,10475,4490,2,0.6376026885976988,0.9050009926543577,0.8187036099008389,0.8189309576837417,"{'max_depth': None, 'max_features': 'sqrt', 'min_samples_split': 2, 'n_estimators': 1000}",2026-03-09T16:31:43.655983
+EMP/Yeast_H3,kmer_rf,6,128,4096,10475,4490,2,0.6984488795645878,0.9216822513400833,0.8489471501125121,0.8492204899777283,"{'max_depth': None, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 1000}",2026-03-09T16:39:04.183847
+EMP/Yeast_H3,kmer_rf,7,128,16384,10475,4490,2,0.7352730994435973,0.9349708159618821,0.8676349988416462,0.867706013363029,"{'max_depth': None, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 1000}",2026-03-09T17:02:01.843838
+EMP/Yeast_H3K14ac,kmer_rf,4,128,256,23133,9915,2,0.370448360879776,0.7672755570715619,0.6590723762729427,0.6930912758446798,"{'max_depth': None, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 1000}",2026-03-09T17:07:29.863881
+EMP/Yeast_H3K14ac,kmer_rf,5,128,1024,23133,9915,2,0.3749933693756041,0.8094179195829707,0.6185626365161604,0.6822995461422088,"{'max_depth': None, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 1000}",2026-03-09T17:15:39.234791

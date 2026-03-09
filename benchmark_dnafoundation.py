@@ -124,8 +124,8 @@ def main():
         help="Metodo di feature extraction (default: all)",
     )
     parser.add_argument(
-        "--k-values", nargs="+", type=int, default=[4, 6],
-        help="Valori di k per kmer e kmer_qt (default: 4 6)",
+        "--k-values", nargs="+", type=int, default=[4, 5, 6, 7, 8],
+        help="Valori di k per le frequenze k-mer (default: 4 5 6 7 8)",
     )
     parser.add_argument("--grid-size", type=int, default=128)
     # QuadTree params
@@ -156,7 +156,7 @@ def main():
         help="Dataset specifici (es. enhancers/enhancer). Default: tutti.",
     )
     parser.add_argument(
-        "--data-root", type=str, default="data/dna_foundation_benchmark",
+        "--data-root", type=str, default="/data/genomic_bench/dna_foundation_benchmark",
         help="Path alla directory con i dataset CSV",
     )
     parser.add_argument(
