@@ -1,39 +1,20 @@
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import (
+    matthews_corrcoef,
+    roc_auc_score,
+    f1_score,
+    accuracy_score,
+)
 
-
-class NumpyDataset(Dataset):
-    def __init__(self, X: np.ndarray, y: np.ndarray):
-        self.X = torch.tensor(X, dtype=torch.float32)
-        self.y = torch.tensor(y, dtype=torch.long)
-
-    def __len__(self):
-        return len(self.y)
-
-    def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
-
-
-class MLP(nn.Module):
-    def __init__(self, in_dim: int, n_classes: int):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(in_dim, 1024),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(1024, 512),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(512, n_classes),
-        )
-
-    def forward(self, x):
-        return self.net(x)
+# Griglia identica a classify_cadph.py del paper (Feng et al., 2025)
+_RF_PARAM_GRID = {
+    "n_estimators": [1000, 500, 200],
+    "max_features": ["sqrt", "log2"],
+    "max_depth": [20, None],
+    "min_samples_split": [2, 5],
+}
 
 
 def train_and_evaluate(
@@ -41,75 +22,55 @@ def train_and_evaluate(
     y_train: np.ndarray,
     X_test: np.ndarray,
     y_test: np.ndarray,
-    epochs: int = 20,
-    batch_size: int = 256,
-    lr: float = 1e-3,
+    n_jobs: int = -1,
 ) -> dict:
     """
-    Addestra un MLP e valuta sul test set.
+    Addestra un Random Forest con GridSearchCV (4-fold CV sul training set)
+    e valuta sul test set.
+
+    Strategia identica a quella del paper (Feng et al., 2025):
+    - Binario: scoring='roc_auc', AUC calcolato su probabilità classe 1
+    - Multiclasse: scoring='accuracy', AUC con multi_class='ovr'
 
     Returns:
-        Dict con f1_macro, accuracy, n_classes, train_size, test_size.
+        Dict con mcc, auroc, f1_macro, accuracy, n_classes, train_size, test_size.
     """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-
     n_classes = len(np.unique(y_train))
+    is_binary = n_classes == 2
 
-    train_ds = NumpyDataset(X_train_scaled, y_train)
-    test_ds = NumpyDataset(X_test_scaled, y_test)
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_ds, batch_size=batch_size)
+    scoring = "roc_auc" if is_binary else "accuracy"
 
-    model = MLP(X_train.shape[1], n_classes).to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=lr)
-    loss_fn = nn.CrossEntropyLoss()
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    gs = GridSearchCV(
+        RandomForestClassifier(random_state=42, n_jobs=n_jobs),
+        param_grid=_RF_PARAM_GRID,
+        cv=4,
+        scoring=scoring,
+        n_jobs=1,  # parallelismo già in RF via n_jobs
+    )
+    gs.fit(X_train, y_train)
+    best = gs.best_estimator_
 
-    for epoch in range(epochs):
-        model.train()
-        for X_batch, y_batch in train_loader:
-            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-            optimizer.zero_grad()
-            loss = loss_fn(model(X_batch), y_batch)
-            loss.backward()
-            optimizer.step()
-        scheduler.step()
-
-    model.eval()
-    all_preds = []
-    all_probs = []
-    all_labels = []
-    with torch.no_grad():
-        for X_batch, y_batch in test_loader:
-            X_batch = X_batch.to(device)
-            logits = model(X_batch)
-            preds = logits.argmax(dim=1).cpu().numpy()
-            probs = torch.softmax(logits, dim=1).cpu().numpy()
-            all_preds.extend(preds)
-            all_probs.extend(probs)
-            all_labels.extend(y_batch.numpy())
-
-    all_preds = np.array(all_preds)
-    all_probs = np.array(all_probs)
-    all_labels = np.array(all_labels)
+    y_pred = best.predict(X_test)
+    y_prob = best.predict_proba(X_test)
 
     metrics = {
-        "f1_macro": f1_score(all_labels, all_preds, average="macro"),
-        "accuracy": accuracy_score(all_labels, all_preds),
+        "mcc": matthews_corrcoef(y_test, y_pred),
+        "f1_macro": f1_score(y_test, y_pred, average="macro"),
+        "accuracy": accuracy_score(y_test, y_pred),
         "n_classes": n_classes,
         "train_size": len(y_train),
         "test_size": len(y_test),
+        "best_params": str(gs.best_params_),
     }
 
-    # AUROC per classificazione binaria
-    if n_classes == 2:
-        try:
-            metrics["auroc"] = roc_auc_score(all_labels, all_probs[:, 1])
-        except ValueError:
-            metrics["auroc"] = float("nan")
+    try:
+        if is_binary:
+            metrics["auroc"] = roc_auc_score(y_test, y_prob[:, 1])
+        else:
+            metrics["auroc"] = roc_auc_score(
+                y_test, y_prob, multi_class="ovr", average="macro"
+            )
+    except ValueError:
+        metrics["auroc"] = float("nan")
 
     return metrics

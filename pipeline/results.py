@@ -12,9 +12,11 @@ COLUMNS = [
     "train_size",
     "test_size",
     "n_classes",
+    "mcc",
+    "auroc",
     "f1_macro",
     "accuracy",
-    "auroc",
+    "best_params",
     "timestamp",
 ]
 

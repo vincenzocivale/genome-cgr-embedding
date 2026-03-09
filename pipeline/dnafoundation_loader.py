@@ -53,7 +53,7 @@ def load_dataset_csv(train_path: str, test_path: str):
 
     le = LabelEncoder()
     le.fit(np.concatenate([train_labels_raw, test_labels_raw]))
-    train_labels = le.transform(train_labels_raw)
-    test_labels = le.transform(test_labels_raw)
+    train_labels: np.ndarray = le.transform(train_labels_raw)
+    test_labels: np.ndarray = le.transform(test_labels_raw)
 
     return train_seqs, train_labels, test_seqs, test_labels

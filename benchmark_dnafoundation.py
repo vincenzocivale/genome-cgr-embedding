@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Benchmark FCGR k-mer MLP sui dataset del DNA Foundation Benchmark.
+Benchmark FCGR k-mer + Random Forest sui dataset del DNA Foundation Benchmark.
+
+Classificatore: Random Forest con GridSearchCV a 4-fold sul training set,
+identico alla strategia usata nel paper (Feng et al., Nat Commun 2025).
 
 Uso:
     python benchmark_dnafoundation.py
@@ -10,6 +13,7 @@ Uso:
 """
 
 import argparse
+import os
 
 from pipeline.dnafoundation_loader import discover_datasets, load_dataset_csv
 from pipeline.feature_extraction import extract_kmer_features
@@ -19,17 +23,21 @@ from pipeline.results import save_result
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Benchmark FCGR k-mer su DNA Foundation Benchmark datasets",
+        description="Benchmark FCGR k-mer + RF su DNA Foundation Benchmark datasets",
     )
     parser.add_argument(
         "--k-values", nargs="+", type=int, default=[4, 6],
         help="Valori di k per le frequenze k-mer (default: 4 6)",
     )
     parser.add_argument("--grid-size", type=int, default=128)
-    parser.add_argument("--epochs", type=int, default=20)
-    parser.add_argument("--batch-size", type=int, default=256)
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--n-workers", type=int, default=1)
+    parser.add_argument(
+        "--n-workers", type=int, default=os.cpu_count(),
+        help="Worker per estrazione FCGR parallela (default: tutti i core)",
+    )
+    parser.add_argument(
+        "--n-jobs", type=int, default=-1,
+        help="Parallelismo Random Forest / GridSearchCV (default: -1 = tutti i core)",
+    )
     parser.add_argument(
         "--output", type=str, default="benchmark_dnafoundation_results.csv",
     )
@@ -39,7 +47,7 @@ def main():
     )
     parser.add_argument(
         "--data-root", type=str, default="data/dna_foundation_benchmark",
-        help="Override del percorso data_processed",
+        help="Path alla directory con i dataset CSV",
     )
     parser.add_argument(
         "--list-tasks", action="store_true",
@@ -50,7 +58,7 @@ def main():
     datasets = discover_datasets(args.data_root)
 
     if not datasets:
-        print("Nessun dataset trovato. Esegui prima: python download_dnafoundation_data.py")
+        print("Nessun dataset trovato in:", args.data_root)
         return
 
     if args.list_tasks:
@@ -68,6 +76,7 @@ def main():
 
     print(f"Dataset: {len(datasets)}")
     print(f"k-values: {args.k_values}")
+    print(f"Classificatore: Random Forest + GridSearchCV (4-fold)")
     print()
 
     for ds_info in datasets:
@@ -98,19 +107,20 @@ def main():
 
             metrics = train_and_evaluate(
                 X_train, train_labels, X_test, test_labels,
-                epochs=args.epochs, batch_size=args.batch_size, lr=args.lr,
+                n_jobs=args.n_jobs,
             )
 
             result = {
                 "task": task_name,
-                "method": "kmer",
+                "method": "kmer_rf",
                 "k": k,
                 "grid_size": args.grid_size,
                 "feature_dim": 4 ** k,
                 **metrics,
             }
             save_result(args.output, result)
-            print(f"  F1 macro: {metrics['f1_macro']:.4f}  Accuracy: {metrics['accuracy']:.4f}")
+            auroc_str = f"  AUROC: {metrics['auroc']:.4f}" if "auroc" in metrics else ""
+            print(f"  MCC: {metrics['mcc']:.4f}  F1: {metrics['f1_macro']:.4f}  Acc: {metrics['accuracy']:.4f}{auroc_str}")
 
     print(f"\nRisultati salvati in: {args.output}")
 
