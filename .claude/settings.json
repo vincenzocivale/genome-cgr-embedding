@@ -12,7 +12,9 @@
       "Read(//benchmarks_repo/dna_foundation_benchmark/**)",
       "Bash(python -c \"from pipeline.dnafoundation_loader import discover_datasets, load_dataset_csv; ds = discover_datasets\\(\\); print\\(f''{len\\(ds\\)} dataset trovati''\\)\")",
       "Bash(python benchmark_dnafoundation.py --list-tasks)",
-      "Bash(python -c \"from pipeline import discover_datasets, extract_kmer_features, train_and_evaluate; print\\(''OK''\\)\")"
+      "Bash(python -c \"from pipeline import discover_datasets, extract_kmer_features, train_and_evaluate; print\\(''OK''\\)\")",
+      "Bash(python -c \":*)",
+      "Bash(python benchmark_dnafoundation.py --method adaptive --k-values 4 --tasks enhancers/enhancer --n-workers 4)"
     ],
     "additionalDirectories": [
       "/data2/home/vcivale/genome-cgr-embedding"

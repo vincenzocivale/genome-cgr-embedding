@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """
-Benchmark FCGR k-mer + Random Forest sui dataset del DNA Foundation Benchmark.
+Benchmark FCGR + Random Forest sui dataset del DNA Foundation Benchmark.
+
+Metodi disponibili:
+  kmer     — k-mer a risoluzione fissa dalla matrice FCGR         (dim = 4^k)
+  adaptive — QuadTree adattivo: suddivide dove la distribuzione   (dim = 4^qt_depth)
+             dei conteggi tra quadranti è significativamente
+             non-uniforme (test chi-quadrato)
+  kmer_qt  — concatenazione [k-mer | adaptive QuadTree]           (dim = 4^k + 4^qt_depth)
+  all      — esegue tutti e tre
 
 Classificatore: Random Forest con GridSearchCV a 4-fold sul training set,
-identico alla strategia usata nel paper (Feng et al., Nat Commun 2025).
+identico alla strategia del paper (Feng et al., Nat Commun 2025).
 
 Uso:
-    python benchmark_dnafoundation.py
-    python benchmark_dnafoundation.py --k-values 4 6
+    python benchmark_dnafoundation.py --method all
+    python benchmark_dnafoundation.py --method adaptive --qt-split-threshold 0.05
     python benchmark_dnafoundation.py --tasks enhancers/enhancer --k-values 4 6
     python benchmark_dnafoundation.py --list-tasks
 """
@@ -17,19 +25,121 @@ import os
 
 from pipeline.dnafoundation_loader import discover_datasets, load_dataset_csv
 from pipeline.feature_extraction import extract_kmer_features
+from pipeline.quadtree import extract_adaptive_features
+from pipeline.combined_features import extract_combined_features
 from pipeline.model import train_and_evaluate
 from pipeline.results import save_result
 
 
+def run_task(task_name, train_seqs, train_labels, test_seqs, test_labels, args):
+    n_classes = len(set(train_labels))
+    print(f"  Train: {len(train_seqs)}, Test: {len(test_seqs)}, Classi: {n_classes}")
+
+    methods = []
+    if args.method in ("kmer", "all"):
+        methods.append("kmer")
+    if args.method in ("adaptive", "all"):
+        methods.append("adaptive")
+    if args.method in ("kmer_qt", "all"):
+        methods.append("kmer_qt")
+
+    for k in args.k_values:
+        if args.grid_size < 2 ** k:
+            print(f"  [SKIP] k={k} richiede grid_size >= {2 ** k}")
+            continue
+
+        for method in methods:
+            if method == "kmer":
+                dim = 4 ** k
+                print(f"\n  --- kmer k={k} (dim={dim}) ---")
+                X_train = extract_kmer_features(
+                    train_seqs, k, args.grid_size, n_workers=args.n_workers,
+                )
+                X_test = extract_kmer_features(
+                    test_seqs, k, args.grid_size, n_workers=args.n_workers,
+                )
+
+            elif method == "adaptive":
+                dim = 4 ** args.qt_max_depth
+                print(f"\n  --- adaptive depth={args.qt_max_depth} p<{args.qt_split_threshold} (dim={dim}) ---")
+                X_train = extract_adaptive_features(
+                    train_seqs, args.grid_size,
+                    max_depth=args.qt_max_depth,
+                    split_threshold=args.qt_split_threshold,
+                    n_workers=args.n_workers,
+                )
+                X_test = extract_adaptive_features(
+                    test_seqs, args.grid_size,
+                    max_depth=args.qt_max_depth,
+                    split_threshold=args.qt_split_threshold,
+                    n_workers=args.n_workers,
+                )
+
+            else:  # kmer_qt
+                dim = 4 ** k + 4 ** args.qt_max_depth
+                print(f"\n  --- kmer_qt k={k} + depth={args.qt_max_depth} p<{args.qt_split_threshold} (dim={dim}) ---")
+                X_train = extract_combined_features(
+                    train_seqs, k, args.grid_size,
+                    qt_max_depth=args.qt_max_depth,
+                    qt_split_threshold=args.qt_split_threshold,
+                    n_workers=args.n_workers,
+                )
+                X_test = extract_combined_features(
+                    test_seqs, k, args.grid_size,
+                    qt_max_depth=args.qt_max_depth,
+                    qt_split_threshold=args.qt_split_threshold,
+                    n_workers=args.n_workers,
+                )
+
+            metrics = train_and_evaluate(
+                X_train, train_labels, X_test, test_labels,
+                n_jobs=args.n_jobs,
+            )
+
+            k_label = k if method != "adaptive" else f"d{args.qt_max_depth}_p{args.qt_split_threshold}"
+            result = {
+                "task": task_name,
+                "method": method,
+                "k": k_label,
+                "grid_size": args.grid_size,
+                "feature_dim": dim,
+                **metrics,
+            }
+            save_result(args.output, result)
+            auroc_str = f"  AUROC: {metrics['auroc']:.4f}" if "auroc" in metrics else ""
+            print(
+                f"  MCC: {metrics['mcc']:.4f}"
+                f"  F1: {metrics['f1_macro']:.4f}"
+                f"  Acc: {metrics['accuracy']:.4f}"
+                f"{auroc_str}"
+            )
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Benchmark FCGR k-mer + RF su DNA Foundation Benchmark datasets",
+        description="Benchmark FCGR + RF su DNA Foundation Benchmark datasets",
+    )
+    parser.add_argument(
+        "--method", choices=["kmer", "adaptive", "kmer_qt", "all"], default="all",
+        help="Metodo di feature extraction (default: all)",
     )
     parser.add_argument(
         "--k-values", nargs="+", type=int, default=[4, 6],
-        help="Valori di k per le frequenze k-mer (default: 4 6)",
+        help="Valori di k per kmer e kmer_qt (default: 4 6)",
     )
     parser.add_argument("--grid-size", type=int, default=128)
+    # QuadTree params
+    parser.add_argument(
+        "--qt-max-depth", type=int, default=6,
+        help="Profondità massima QuadTree adattivo (default: 6 → 4096 feature)",
+    )
+    parser.add_argument(
+        "--qt-split-threshold", type=float, default=0.05,
+        help="P-value chi-quadrato per suddivisione (default: 0.05). "
+             "Suddivide se la distribuzione tra i 4 figli è significativamente "
+             "non-uniforme (p < soglia). 1.0 = suddivide sempre. 0.0 = mai.",
+    )
+    # Parallelism
     parser.add_argument(
         "--n-workers", type=int, default=os.cpu_count(),
         help="Worker per estrazione FCGR parallela (default: tutti i core)",
@@ -43,7 +153,7 @@ def main():
     )
     parser.add_argument(
         "--tasks", nargs="+", default=None,
-        help="Dataset specifici da eseguire (es. enhancers/enhancer). Default: tutti.",
+        help="Dataset specifici (es. enhancers/enhancer). Default: tutti.",
     )
     parser.add_argument(
         "--data-root", type=str, default="data/dna_foundation_benchmark",
@@ -75,7 +185,9 @@ def main():
             return
 
     print(f"Dataset: {len(datasets)}")
-    print(f"k-values: {args.k_values}")
+    print(f"Metodo: {args.method}  |  k-values: {args.k_values}")
+    if args.method in ("adaptive", "kmer_qt", "all"):
+        print(f"QuadTree adattivo: max_depth={args.qt_max_depth}, split p<{args.qt_split_threshold}")
     print(f"Classificatore: Random Forest + GridSearchCV (4-fold)")
     print()
 
@@ -88,39 +200,7 @@ def main():
         train_seqs, train_labels, test_seqs, test_labels = load_dataset_csv(
             ds_info["train_path"], ds_info["test_path"],
         )
-        n_classes = len(set(train_labels))
-        print(f"  Train: {len(train_seqs)}, Test: {len(test_seqs)}, Classi: {n_classes}")
-
-        for k in args.k_values:
-            if args.grid_size < 2 ** k:
-                print(f"  [SKIP] k={k} richiede grid_size >= {2 ** k}")
-                continue
-
-            print(f"\n  --- kmer k={k} (dim={4 ** k}) ---")
-
-            X_train = extract_kmer_features(
-                train_seqs, k, args.grid_size, n_workers=args.n_workers,
-            )
-            X_test = extract_kmer_features(
-                test_seqs, k, args.grid_size, n_workers=args.n_workers,
-            )
-
-            metrics = train_and_evaluate(
-                X_train, train_labels, X_test, test_labels,
-                n_jobs=args.n_jobs,
-            )
-
-            result = {
-                "task": task_name,
-                "method": "kmer_rf",
-                "k": k,
-                "grid_size": args.grid_size,
-                "feature_dim": 4 ** k,
-                **metrics,
-            }
-            save_result(args.output, result)
-            auroc_str = f"  AUROC: {metrics['auroc']:.4f}" if "auroc" in metrics else ""
-            print(f"  MCC: {metrics['mcc']:.4f}  F1: {metrics['f1_macro']:.4f}  Acc: {metrics['accuracy']:.4f}{auroc_str}")
+        run_task(task_name, train_seqs, train_labels, test_seqs, test_labels, args)
 
     print(f"\nRisultati salvati in: {args.output}")
 
