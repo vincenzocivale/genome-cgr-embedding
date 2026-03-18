@@ -14,10 +14,19 @@
       "Bash(python benchmark_dnafoundation.py --list-tasks)",
       "Bash(python -c \"from pipeline import discover_datasets, extract_kmer_features, train_and_evaluate; print\\(''OK''\\)\")",
       "Bash(python -c \":*)",
-      "Bash(python benchmark_dnafoundation.py --method adaptive --k-values 4 --tasks enhancers/enhancer --n-workers 4)"
+      "Bash(python benchmark_dnafoundation.py --method adaptive --k-values 4 --tasks enhancers/enhancer --n-workers 4)",
+      "Bash(git -C /home/oem/genome-cgr-embedding log --oneline -20)",
+      "Read(//data/genomic_bench/dna_foundation_benchmark/**)",
+      "Bash(wc -l /data/genomic_bench/dna_foundation_benchmark/EMP/Yeast_H3/*.csv)",
+      "Bash(python3:*)",
+      "Bash(find /data/genomic_bench/dna_foundation_benchmark -name \"train.csv\" -exec wc -l {})",
+      "Read(//home/oem/**)",
+      "Read(//home/oem/.local/**)",
+      "Bash(conda run:*)"
     ],
     "additionalDirectories": [
-      "/data2/home/vcivale/genome-cgr-embedding"
+      "/data2/home/vcivale/genome-cgr-embedding",
+      "/home/oem/.claude/projects/-home-oem-genome-cgr-embedding"
     ]
   }
 }
