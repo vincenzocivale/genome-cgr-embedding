@@ -48,6 +48,11 @@ def tok_col(model_name: str, metric: str) -> str:
     return f"tok_{_model_tag(model_name)}_{metric}"
 
 
+def multiscale_col(k_values: tuple[int, ...], metric: str) -> str:
+    tag = "_".join(str(k) for k in sorted(k_values))
+    return f"kmer_multi_k{tag}_{metric}"
+
+
 def mi_kmer_col(k: int) -> str:
     return f"mi_kmer_k{k}"
 
@@ -104,6 +109,13 @@ def has_ridge(dataset: str, k: int, model_name: str, df: pd.DataFrame) -> bool:
     return col in df.columns and pd.notna(df.loc[dataset, col])
 
 
+def has_multiscale(dataset: str, k_values: tuple[int, ...], df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = multiscale_col(k_values, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
 def has_tok(dataset: str, model_name: str, df: pd.DataFrame) -> bool:
     if df.empty or dataset not in df.index:
         return False
@@ -151,6 +163,16 @@ def write_dataset_info(dataset: str, info: dict,
     for col in DATASET_INFO_COLS:
         if col in info:
             df.loc[dataset, col] = info[col]
+    _save(df, path)
+    return df
+
+
+def write_multiscale(dataset: str, k_values: tuple[int, ...], rf_metrics: dict,
+                     path: str = RECORDS_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC, F1, Accuracy"""
+    df = _ensure_row(load_records(path), dataset)
+    for m in RF_METRICS:
+        df.loc[dataset, multiscale_col(k_values, m)] = rf_metrics[m]
     _save(df, path)
     return df
 
