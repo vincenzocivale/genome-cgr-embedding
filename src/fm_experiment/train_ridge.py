@@ -42,8 +42,11 @@ def load_embeddings(model_name: str, dataset_name: str, split: str) -> np.ndarra
 
     candidates = [
         os.path.join("cache/fm_embeddings", safe_model, safe_ds, f"{split}.npz"),
-        os.path.join("cache/hyena_embeddings", safe_ds, f"{split}.npz"),
     ]
+    if "hyenadna" in model_name.lower():
+        candidates.append(
+            os.path.join("cache/hyena_embeddings", safe_ds, f"{split}.npz"),
+        )
     for path in candidates:
         if os.path.exists(path):
             return np.load(path)["embeddings"].astype(np.float32)
@@ -59,6 +62,8 @@ def main():
     parser.add_argument("--k-values", nargs="+", type=int, required=True,
                         help="K-mer sizes (es. 4 5 6)")
     parser.add_argument("--n-workers", type=int, default=8)
+    parser.add_argument("--max-train-samples", type=int, default=50000,
+                        help="Skip dataset con più di N campioni di training (default 50000)")
     args = parser.parse_args()
 
     all_datasets = discover_datasets(args.data_root)
@@ -91,6 +96,11 @@ def main():
         if Y_train is None or Y_test is None:
             pbar.update(len(args.k_values))
             pbar.set_description(f"⚠️  {name} (no FM cache)")
+            continue
+
+        if Y_train.shape[0] > args.max_train_samples:
+            pbar.update(len(args.k_values))
+            pbar.set_description(f"⚠️  {name} (n={Y_train.shape[0]} > {args.max_train_samples})")
             continue
 
         # Carica sequenze solo per i k-values mancanti

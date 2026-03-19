@@ -44,6 +44,22 @@ def ridge_col(k: int, model_name: str, metric: str) -> str:
     return f"ridge_k{k}_{_model_tag(model_name)}_{metric}"
 
 
+def tok_col(model_name: str, metric: str) -> str:
+    return f"tok_{_model_tag(model_name)}_{metric}"
+
+
+def mi_kmer_col(k: int) -> str:
+    return f"mi_kmer_k{k}"
+
+
+def mi_fm_col(model_name: str) -> str:
+    return f"mi_fm_{_model_tag(model_name)}"
+
+
+def mi_tok_col(model_name: str) -> str:
+    return f"mi_tok_{_model_tag(model_name)}"
+
+
 # ── load / save ─────────────────────────────────────────────────────────────
 
 def load_records(path: str = RECORDS_CSV) -> pd.DataFrame:
@@ -88,6 +104,34 @@ def has_ridge(dataset: str, k: int, model_name: str, df: pd.DataFrame) -> bool:
     return col in df.columns and pd.notna(df.loc[dataset, col])
 
 
+def has_tok(dataset: str, model_name: str, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = tok_col(model_name, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_mi_tok(dataset: str, model_name: str, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = mi_tok_col(model_name)
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_mi_kmer(dataset: str, k: int, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = mi_kmer_col(k)
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_mi_fm(dataset: str, model_name: str, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = mi_fm_col(model_name)
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
 # ── write results ─────────────────────────────────────────────────────────────
 
 def _ensure_row(df: pd.DataFrame, dataset: str) -> pd.DataFrame:
@@ -107,6 +151,40 @@ def write_dataset_info(dataset: str, info: dict,
     for col in DATASET_INFO_COLS:
         if col in info:
             df.loc[dataset, col] = info[col]
+    _save(df, path)
+    return df
+
+
+def write_tok(dataset: str, model_name: str, rf_metrics: dict,
+              path: str = RECORDS_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC, F1, Accuracy"""
+    df = _ensure_row(load_records(path), dataset)
+    for m in RF_METRICS:
+        df.loc[dataset, tok_col(model_name, m)] = rf_metrics[m]
+    _save(df, path)
+    return df
+
+
+def write_mi_tok(dataset: str, model_name: str, mi_value: float,
+                 path: str = RECORDS_CSV) -> pd.DataFrame:
+    df = _ensure_row(load_records(path), dataset)
+    df.loc[dataset, mi_tok_col(model_name)] = mi_value
+    _save(df, path)
+    return df
+
+
+def write_mi_kmer(dataset: str, k: int, mi_value: float,
+                  path: str = RECORDS_CSV) -> pd.DataFrame:
+    df = _ensure_row(load_records(path), dataset)
+    df.loc[dataset, mi_kmer_col(k)] = mi_value
+    _save(df, path)
+    return df
+
+
+def write_mi_fm(dataset: str, model_name: str, mi_value: float,
+                path: str = RECORDS_CSV) -> pd.DataFrame:
+    df = _ensure_row(load_records(path), dataset)
+    df.loc[dataset, mi_fm_col(model_name)] = mi_value
     _save(df, path)
     return df
 

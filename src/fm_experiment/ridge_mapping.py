@@ -1,5 +1,9 @@
 """
 Ridge regression mapping from k-mer features to FM embeddings.
+
+Uses RidgeCV with efficient GCV (Generalized Cross-Validation) which
+avoids materialising large LOO matrices — O(N * d * n_alphas) memory
+instead of O(N² * d).
 """
 
 import numpy as np
@@ -33,7 +37,7 @@ def fit_and_evaluate(
     if alphas is None:
         alphas = ALPHAS
 
-    ridge = RidgeCV(alphas=alphas, fit_intercept=True)
+    ridge = RidgeCV(alphas=alphas, fit_intercept=True, gcv_mode="svd")
     ridge.fit(X_train, Y_train)
 
     Y_pred = ridge.predict(X_test)
