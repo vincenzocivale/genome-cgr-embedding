@@ -5,6 +5,7 @@ Uses RidgeCV with efficient GCV (Generalized Cross-Validation) which
 avoids materialising large LOO matrices — O(N * d * n_alphas) memory
 instead of O(N² * d).
 """
+from __future__ import annotations
 
 import numpy as np
 from sklearn.linear_model import RidgeCV
@@ -37,7 +38,7 @@ def fit_and_evaluate(
     if alphas is None:
         alphas = ALPHAS
 
-    ridge = RidgeCV(alphas=alphas, fit_intercept=True, gcv_mode="svd")
+    ridge = RidgeCV(alphas=alphas, fit_intercept=True, gcv_mode="auto")
     ridge.fit(X_train, Y_train)
 
     Y_pred = ridge.predict(X_test)

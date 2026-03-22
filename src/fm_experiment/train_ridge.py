@@ -12,6 +12,7 @@ Usage:
     python3 src/fm_experiment/train_ridge.py --model InstaDeepAI/NTv3_650M_pre --k-values 4 6 8
     python3 src/fm_experiment/train_ridge.py --model LongSafari/hyenadna-medium-160k-seqlen-hf --k-values 6
 """
+from __future__ import annotations
 
 import argparse
 import os
@@ -42,6 +43,7 @@ def load_embeddings(model_name: str, dataset_name: str, split: str) -> np.ndarra
 
     candidates = [
         os.path.join("cache/fm_embeddings", safe_model, safe_ds, f"{split}.npz"),
+        os.path.join("cache/fm_embeddings", safe_ds, f"{split}.npz"),
     ]
     if "hyenadna" in model_name.lower():
         candidates.append(
@@ -62,8 +64,8 @@ def main():
     parser.add_argument("--k-values", nargs="+", type=int, required=True,
                         help="K-mer sizes (es. 4 5 6)")
     parser.add_argument("--n-workers", type=int, default=8)
-    parser.add_argument("--max-train-samples", type=int, default=50000,
-                        help="Skip dataset con più di N campioni di training (default 50000)")
+    parser.add_argument("--max-train-samples", type=int, default=0,
+                        help="Subsample dataset con più di N campioni (0=nessun limite)")
     args = parser.parse_args()
 
     all_datasets = discover_datasets(args.data_root)
@@ -98,13 +100,16 @@ def main():
             pbar.set_description(f"⚠️  {name} (no FM cache)")
             continue
 
-        if Y_train.shape[0] > args.max_train_samples:
-            pbar.update(len(args.k_values))
-            pbar.set_description(f"⚠️  {name} (n={Y_train.shape[0]} > {args.max_train_samples})")
-            continue
-
         # Carica sequenze solo per i k-values mancanti
         train_seqs, _, test_seqs, _ = load_dataset(ds["train_path"], ds["test_path"])
+
+        if args.max_train_samples > 0 and Y_train.shape[0] > args.max_train_samples:
+            rng = np.random.RandomState(42)
+            idx = rng.choice(Y_train.shape[0], args.max_train_samples, replace=False)
+            idx.sort()
+            Y_train = Y_train[idx]
+            train_seqs = [train_seqs[i] for i in idx]
+            pbar.set_description(f"⚠️  {name} subsampled {args.max_train_samples}")
 
         for k in args.k_values:
             if not has_ridge(name, k, args.model, records):

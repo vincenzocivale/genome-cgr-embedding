@@ -20,6 +20,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from src.data.loader import discover_datasets, load_dataset
 from src.fm_experiment.kmer_features import extract_kmer_features
 from src.fm_experiment.records import load_records, has_kmer, write_kmer, RECORDS_CSV
+from src.core.fcgr import batch_fcgr
+from src.core.kmer import KmerEmbedder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.metrics import matthews_corrcoef, roc_auc_score, f1_score, accuracy_score
@@ -95,28 +97,37 @@ def main():
         )
         n_classes = len(set(train_labels))
 
+        # Determina k mancanti
+        pending_ks = [k for k in args.k_values if not has_kmer(name, k, records)]
+
+        if not pending_ks:
+            completed += len(args.k_values)
+            pbar.update(len(args.k_values))
+            pbar.set_description(f"⏭  {name}")
+            continue
+
+        # Calcola FCGR una sola volta alla risoluzione massima necessaria
+        max_k = max(pending_ks)
+        grid_size = max(128, 2 ** max_k)
+        pbar.set_description(f"[{name}] FCGR grid={grid_size}")
+        grids_train = batch_fcgr(train_seqs, grid_size=grid_size, n_workers=args.n_workers)
+        grids_test = batch_fcgr(test_seqs, grid_size=grid_size, n_workers=args.n_workers)
+
         # Loop sui k-values
         for k in args.k_values:
-            n_completed = completed + 1
-            n_remaining = n_total - n_completed
+            completed += 1
 
-            # Train RF
             if not has_kmer(name, k, records):
-                # Estrai feature k-mer (grid_size deve essere >= 2^k)
-                grid_size = max(128, 2 ** k)
-                X_train = extract_kmer_features(train_seqs, k=k, grid_size=grid_size,
-                                              n_workers=args.n_workers)
-                X_test = extract_kmer_features(test_seqs, k=k, grid_size=grid_size,
-                                             n_workers=args.n_workers)
+                embedder = KmerEmbedder(k_size=k, normalize=True)
+                X_train = np.array([embedder.compute_embedding(g) for g in grids_train])
+                X_test = np.array([embedder.compute_embedding(g) for g in grids_test])
                 rf = train_rf(X_train, train_labels, n_classes)
                 metrics = eval_rf(rf, X_test, test_labels, n_classes)
                 write_kmer(name, k, metrics)
                 records = load_records(RECORDS_CSV)
 
-            # Update progress
-            completed = n_completed
             pbar.update(1)
-            pbar.set_description(f"[{name} k={k}] {n_completed}/{n_total} | Mancano {n_remaining}")
+            pbar.set_description(f"[{name} k={k}] {completed}/{n_total}")
 
     pbar.close()
     print(f"\n✅ Completato! {n_total}/{n_total} task")

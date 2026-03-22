@@ -12,11 +12,13 @@ Metriche Ridge: R2, MSE
 
 model_tag = ultima parte del model ID (es. NTv3_650M_pre)
 """
+from __future__ import annotations
 
 import os
 import pandas as pd
 
 RECORDS_CSV = "results/records.csv"
+RECORDS_MI_CSV = "results/records_mi.csv"
 RF_METRICS  = ["MCC", "AUROC", "F1", "Accuracy"]
 RIDGE_METRICS = ["R2", "MSE"]
 DATASET_INFO_COLS = [
@@ -51,6 +53,11 @@ def tok_col(model_name: str, metric: str) -> str:
 def multiscale_col(k_values: tuple[int, ...], metric: str) -> str:
     tag = "_".join(str(k) for k in sorted(k_values))
     return f"kmer_multi_k{tag}_{metric}"
+
+
+def ridge_multi_col(k_values: tuple[int, ...], model_name: str, metric: str) -> str:
+    tag = "_".join(str(k) for k in sorted(k_values))
+    return f"ridge_multi_k{tag}_{_model_tag(model_name)}_{metric}"
 
 
 def mi_kmer_col(k: int) -> str:
@@ -109,6 +116,14 @@ def has_ridge(dataset: str, k: int, model_name: str, df: pd.DataFrame) -> bool:
     return col in df.columns and pd.notna(df.loc[dataset, col])
 
 
+def has_ridge_multi(dataset: str, k_values: tuple[int, ...],
+                    model_name: str, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = ridge_multi_col(k_values, model_name, RIDGE_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
 def has_multiscale(dataset: str, k_values: tuple[int, ...], df: pd.DataFrame) -> bool:
     if df.empty or dataset not in df.index:
         return False
@@ -121,6 +136,14 @@ def has_tok(dataset: str, model_name: str, df: pd.DataFrame) -> bool:
         return False
     col = tok_col(model_name, RF_METRICS[0])
     return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def load_mi_records(path: str = RECORDS_MI_CSV) -> pd.DataFrame:
+    if os.path.exists(path):
+        df = pd.read_csv(path, index_col=0)
+        df.index.name = "dataset"
+        return df
+    return pd.DataFrame()
 
 
 def has_mi_tok(dataset: str, model_name: str, df: pd.DataFrame) -> bool:
@@ -188,24 +211,24 @@ def write_tok(dataset: str, model_name: str, rf_metrics: dict,
 
 
 def write_mi_tok(dataset: str, model_name: str, mi_value: float,
-                 path: str = RECORDS_CSV) -> pd.DataFrame:
-    df = _ensure_row(load_records(path), dataset)
+                 path: str = RECORDS_MI_CSV) -> pd.DataFrame:
+    df = _ensure_row(load_mi_records(path), dataset)
     df.loc[dataset, mi_tok_col(model_name)] = mi_value
     _save(df, path)
     return df
 
 
 def write_mi_kmer(dataset: str, k: int, mi_value: float,
-                  path: str = RECORDS_CSV) -> pd.DataFrame:
-    df = _ensure_row(load_records(path), dataset)
+                  path: str = RECORDS_MI_CSV) -> pd.DataFrame:
+    df = _ensure_row(load_mi_records(path), dataset)
     df.loc[dataset, mi_kmer_col(k)] = mi_value
     _save(df, path)
     return df
 
 
 def write_mi_fm(dataset: str, model_name: str, mi_value: float,
-                path: str = RECORDS_CSV) -> pd.DataFrame:
-    df = _ensure_row(load_records(path), dataset)
+                path: str = RECORDS_MI_CSV) -> pd.DataFrame:
+    df = _ensure_row(load_mi_records(path), dataset)
     df.loc[dataset, mi_fm_col(model_name)] = mi_value
     _save(df, path)
     return df
@@ -227,6 +250,16 @@ def write_fm(dataset: str, model_name: str, rf_metrics: dict,
     df = _ensure_row(load_records(path), dataset)
     for m in RF_METRICS:
         df.loc[dataset, fm_col(model_name, m)] = rf_metrics[m]
+    _save(df, path)
+    return df
+
+
+def write_ridge_multi(dataset: str, k_values: tuple[int, ...], model_name: str,
+                      ridge_metrics: dict, path: str = RECORDS_CSV) -> pd.DataFrame:
+    """ridge_metrics keys: R2, MSE"""
+    df = _ensure_row(load_records(path), dataset)
+    for m in RIDGE_METRICS:
+        df.loc[dataset, ridge_multi_col(k_values, model_name, m)] = ridge_metrics[m]
     _save(df, path)
     return df
 

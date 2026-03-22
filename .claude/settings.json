@@ -22,7 +22,8 @@
       "Bash(find /data/genomic_bench/dna_foundation_benchmark -name \"train.csv\" -exec wc -l {})",
       "Read(//home/oem/**)",
       "Read(//home/oem/.local/**)",
-      "Bash(conda run:*)"
+      "Bash(conda run:*)",
+      "Bash(grep -E \"^\\(Dataset|---|-|EMP|deep|enh|genom|iDNA|mouse|$\\)\")"
     ],
     "additionalDirectories": [
       "/data2/home/vcivale/genome-cgr-embedding",
