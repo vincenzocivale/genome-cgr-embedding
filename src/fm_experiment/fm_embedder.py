@@ -2,8 +2,9 @@
 Foundation model embedding extraction via HuggingFace Transformers.
 
 Supports:
-  - NTv3   (InstaDeepAI/NTv3_*)          AutoModelForMaskedLM  6-mer tokenization
-  - HyenaDNA (LongSafari/hyenadna-*-hf)  AutoModel             char-level tokenization
+  - NTv3      (InstaDeepAI/NTv3_*)             AutoModelForMaskedLM  6-mer tokenization
+  - HyenaDNA  (LongSafari/hyenadna-*-hf)       AutoModel             char-level tokenization
+  - DNABERT-2 (zhihan1996/DNABERT-2-117M)       AutoModel             BPE tokenization
 
 Produces mean-pooled sequence-level embeddings with disk caching in .npz (float16).
 """
@@ -16,10 +17,10 @@ from transformers import AutoTokenizer, AutoModelForMaskedLM, AutoModel
 
 
 # Models that use AutoModel (encoder backbone only, no LM head)
-_AUTOMODEL_PREFIXES = ("LongSafari/hyenadna",)
+_AUTOMODEL_PREFIXES = ("LongSafari/hyenadna", "zhihan1996/DNABERT-2")
 
 # Models that need char-level tokenization (no padding to multiple-of-128)
-_CHAR_LEVEL_PREFIXES = ("LongSafari/hyenadna",)
+_CHAR_LEVEL_PREFIXES = ("LongSafari/hyenadna", "zhihan1996/DNABERT-2")
 
 
 def _get_device() -> torch.device:
@@ -56,7 +57,39 @@ class FMEmbedder:
             model_name, trust_remote_code=True
         )
         if _is_automodel(model_name):
-            self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+            # DNABERT-2: BertConfig in older checkpoints lacks pad_token_id;
+            # inject it from the tokenizer before model init to avoid AttributeError.
+            from transformers import AutoConfig
+            cfg = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+            if not hasattr(cfg, "pad_token_id") or cfg.pad_token_id is None:
+                cfg.pad_token_id = self.tokenizer.pad_token_id or 0
+            # DNABERT-2's custom ALiBi init creates tensors on the default device.
+            # transformers 5.x unconditionally wraps model __init__ in
+            # torch.device("meta") context (see get_init_context), which crashes
+            # DNABert-2's ALiBi build.  Monkey-patch to replace "meta" with "cpu".
+            # DNABERT-2's bundled flash_attn_triton.py uses tl.dot(trans_b=True)
+            # removed in newer Triton versions.  Force the PyTorch fallback by
+            # setting attention_probs_dropout_prob > 0 in config (bert_layers.py
+            # line 161: `if self.p_dropout or flash_attn_qkvpacked_func is None`).
+            if not getattr(cfg, "attention_probs_dropout_prob", 0):
+                cfg.attention_probs_dropout_prob = 1e-8  # negligible but non-zero
+
+            from transformers import PreTrainedModel
+            _orig_get_init_context = PreTrainedModel.get_init_context
+
+            @classmethod
+            def _cpu_init_context(cls_, dtype, is_quantized, _is_ds_init_called, allow_all_kernels):
+                ctxs = _orig_get_init_context.__func__(cls_, dtype, is_quantized, _is_ds_init_called, allow_all_kernels)
+                return [torch.device("cpu") if isinstance(c, torch.device) and c.type == "meta" else c for c in ctxs]
+
+            PreTrainedModel.get_init_context = _cpu_init_context
+            try:
+                self.model = AutoModel.from_pretrained(
+                    model_name, config=cfg, trust_remote_code=True,
+                    use_safetensors=True,
+                )
+            finally:
+                PreTrainedModel.get_init_context = _orig_get_init_context
         else:
             self.model = AutoModelForMaskedLM.from_pretrained(
                 model_name, trust_remote_code=True
@@ -99,9 +132,12 @@ class FMEmbedder:
         input_ids = input_ids.to(self.device)
         with torch.no_grad():
             if _is_automodel(self.model_name):
-                # HyenaDNA returns (B, L, D) directly as last_hidden_state
                 out = self.model(input_ids)
-                hidden = out.last_hidden_state
+                # DNABERT-2 returns a tuple; HyenaDNA returns an object with last_hidden_state
+                if isinstance(out, (tuple, list)):
+                    hidden = out[0]
+                else:
+                    hidden = out.last_hidden_state
             else:
                 # NTv3: hidden_states[-1] is the last transformer layer output
                 out = self.model(input_ids, output_hidden_states=True)

@@ -81,6 +81,8 @@ def main():
                        help="FM model: NTv3_650M_pre, hyenadna-medium-160k, etc.")
     parser.add_argument("--datasets", nargs="*", default=None,
                        help="Filter datasets (exact match)")
+    parser.add_argument("--fm-only", action="store_true",
+                       help="Skip k-mer features and Ridge, run only FM embeddings")
     args = parser.parse_args()
 
     # Carica lista dataset
@@ -102,7 +104,8 @@ def main():
     records = load_records(os.path.join("results", "records.csv"))
 
     # Progress bar esterna per i dataset
-    total_work = len(all_datasets) * (1 + len(args.k_values))  # FM + k-mers per dataset
+    k_values = [] if args.fm_only else args.k_values
+    total_work = len(all_datasets) * (1 + len(k_values))  # FM + k-mers per dataset
     pbar = tqdm(total=total_work, desc="Benchmark", unit="task", ncols=60)
 
     for ds in all_datasets:
@@ -128,7 +131,7 @@ def main():
         pbar.set_description(f"[{name}] FM")
 
         # ── Loop sui k-values ──
-        for k in args.k_values:
+        for k in k_values:
             need_ridge = not has_ridge(name, k, args.model, records)
             need_kmer = not has_kmer(name, k, records)
 
