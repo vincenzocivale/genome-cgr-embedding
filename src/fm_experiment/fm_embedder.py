@@ -56,6 +56,9 @@ class FMEmbedder:
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True
         )
+        # fp16 only makes sense on CUDA; fall back to fp32 on CPU/MPS
+        load_dtype = torch.float16 if self.device.type == "cuda" else torch.float32
+
         if _is_automodel(model_name):
             # DNABERT-2: BertConfig in older checkpoints lacks pad_token_id;
             # inject it from the tokenizer before model init to avoid AttributeError.
@@ -86,13 +89,13 @@ class FMEmbedder:
             try:
                 self.model = AutoModel.from_pretrained(
                     model_name, config=cfg, trust_remote_code=True,
-                    use_safetensors=True,
+                    use_safetensors=True, torch_dtype=load_dtype,
                 )
             finally:
                 PreTrainedModel.get_init_context = _orig_get_init_context
         else:
             self.model = AutoModelForMaskedLM.from_pretrained(
-                model_name, trust_remote_code=True
+                model_name, trust_remote_code=True, torch_dtype=load_dtype,
             )
         self.model.eval()
         self.model.to(self.device)
@@ -176,7 +179,7 @@ class FMEmbedder:
 
             # Mean-pool over non-padding tokens
             input_ids_dev = input_ids.to(self.device)
-            mask = (input_ids_dev != pad_id).unsqueeze(-1).float()  # (B, L, 1)
+            mask = (input_ids_dev != pad_id).unsqueeze(-1).to(hidden.dtype)  # (B, L, 1)
             pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)  # (B, D)
             all_embs.append(pooled.cpu().to(torch.float16).numpy())
 

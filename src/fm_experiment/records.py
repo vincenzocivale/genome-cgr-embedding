@@ -72,6 +72,34 @@ def mi_tok_col(model_name: str) -> str:
     return f"mi_tok_{_model_tag(model_name)}"
 
 
+def _float_tag(x: float) -> str:
+    s = f"{x:.4f}"
+    s = s.rstrip("0").rstrip(".")
+    if s == "":
+        s = "0"
+    return s.replace(".", "p")
+
+
+def quadtree_col(max_depth: int, p_threshold: float,
+                 min_count: int, metric: str) -> str:
+    tag = f"d{max_depth}_p{_float_tag(p_threshold)}_m{min_count}"
+    return f"qt_{tag}_{metric}"
+
+
+def wavelet_col(levels: int, metric: str) -> str:
+    return f"wavelet_l{levels}_{metric}"
+
+
+def wms_col(k_values: tuple[int, ...], weighting: str, metric: str) -> str:
+    tag = "_".join(str(k) for k in sorted(k_values))
+    return f"wms_k{tag}_{weighting}_{metric}"
+
+
+def wms_weights_col(k_values: tuple[int, ...], weighting: str) -> str:
+    tag = "_".join(str(k) for k in sorted(k_values))
+    return f"wms_k{tag}_{weighting}_weights"
+
+
 # ── load / save ─────────────────────────────────────────────────────────────
 
 def load_records(path: str = RECORDS_CSV) -> pd.DataFrame:
@@ -135,6 +163,29 @@ def has_tok(dataset: str, model_name: str, df: pd.DataFrame) -> bool:
     if df.empty or dataset not in df.index:
         return False
     col = tok_col(model_name, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_quadtree(dataset: str, max_depth: int, p_threshold: float,
+                 min_count: int, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = quadtree_col(max_depth, p_threshold, min_count, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_wavelet(dataset: str, levels: int, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = wavelet_col(levels, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_wms(dataset: str, k_values: tuple[int, ...], weighting: str,
+            df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = wms_col(k_values, weighting, RF_METRICS[0])
     return col in df.columns and pd.notna(df.loc[dataset, col])
 
 
@@ -254,6 +305,42 @@ def write_fm(dataset: str, model_name: str, rf_metrics: dict,
     return df
 
 
+def write_quadtree(dataset: str, max_depth: int, p_threshold: float,
+                   min_count: int, rf_metrics: dict,
+                   path: str = RECORDS_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC, F1, Accuracy"""
+    df = _ensure_row(load_records(path), dataset)
+    for m in RF_METRICS:
+        df.loc[dataset, quadtree_col(max_depth, p_threshold, min_count, m)] = rf_metrics[m]
+    _save(df, path)
+    return df
+
+
+def write_wavelet(dataset: str, levels: int, rf_metrics: dict,
+                  path: str = RECORDS_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC, F1, Accuracy"""
+    df = _ensure_row(load_records(path), dataset)
+    for m in RF_METRICS:
+        df.loc[dataset, wavelet_col(levels, m)] = rf_metrics[m]
+    _save(df, path)
+    return df
+
+
+def write_wms(dataset: str, k_values: tuple[int, ...], weighting: str,
+              rf_metrics: dict, weights: list[float] | None = None,
+              path: str = RECORDS_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC, F1, Accuracy"""
+    df = _ensure_row(load_records(path), dataset)
+    for m in RF_METRICS:
+        df.loc[dataset, wms_col(k_values, weighting, m)] = rf_metrics[m]
+    if weights is not None:
+        df.loc[dataset, wms_weights_col(k_values, weighting)] = ",".join(
+            f"{w:.4f}" for w in weights
+        )
+    _save(df, path)
+    return df
+
+
 def write_ridge_multi(dataset: str, k_values: tuple[int, ...], model_name: str,
                       ridge_metrics: dict, path: str = RECORDS_CSV) -> pd.DataFrame:
     """ridge_metrics keys: R2, MSE"""
@@ -288,6 +375,27 @@ def get_fm(dataset: str, model_name: str,
     if not has_fm(dataset, model_name, df):
         return None
     return {m: df.loc[dataset, fm_col(model_name, m)] for m in RF_METRICS}
+
+
+def get_quadtree(dataset: str, max_depth: int, p_threshold: float,
+                 min_count: int, df: pd.DataFrame) -> dict | None:
+    if not has_quadtree(dataset, max_depth, p_threshold, min_count, df):
+        return None
+    return {m: df.loc[dataset, quadtree_col(max_depth, p_threshold, min_count, m)]
+            for m in RF_METRICS}
+
+
+def get_wavelet(dataset: str, levels: int, df: pd.DataFrame) -> dict | None:
+    if not has_wavelet(dataset, levels, df):
+        return None
+    return {m: df.loc[dataset, wavelet_col(levels, m)] for m in RF_METRICS}
+
+
+def get_wms(dataset: str, k_values: tuple[int, ...], weighting: str,
+            df: pd.DataFrame) -> dict | None:
+    if not has_wms(dataset, k_values, weighting, df):
+        return None
+    return {m: df.loc[dataset, wms_col(k_values, weighting, m)] for m in RF_METRICS}
 
 
 def get_ridge(dataset: str, k: int, model_name: str,

@@ -1,0 +1,8 @@
+method,count,mean_mcc,median_mcc
+kmer_k4,57,0.516997,0.517650
+kmer_k5,57,0.519028,0.520875
+kmer_k6,57,0.499874,0.494102
+kmer_multi_k4_5_6,57,0.517601,0.536383
+fm_NTv3_650M_pre,57,0.561708,0.543194
+fm_hyenadna-medium-160k-seqlen-hf,57,0.448290,0.448590
+fm_DNABERT-2-117M,17,0.284849,0.300406

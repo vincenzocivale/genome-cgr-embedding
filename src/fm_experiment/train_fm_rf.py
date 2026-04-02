@@ -12,6 +12,7 @@ import argparse
 import sys
 import os
 
+import time
 import numpy as np
 from tqdm import tqdm
 
@@ -21,6 +22,7 @@ from src.data.loader import discover_datasets, load_dataset
 from src.fm_experiment.fm_embedder import FMEmbedder
 from src.fm_experiment.hyena_embedder import HyenaEmbedder
 from src.fm_experiment.records import load_records, has_fm, write_fm, RECORDS_CSV
+from src.fm_experiment.efficiency import log_efficiency
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.metrics import matthews_corrcoef, roc_auc_score, f1_score, accuracy_score
@@ -109,8 +111,11 @@ def main():
         n_classes = len(set(train_labels))
 
         # FM embeddings (cached)
+        t0 = time.perf_counter()
         Y_train = fm.embed_sequences(train_seqs, name, "train", args.fm_batch_size)
         Y_test = fm.embed_sequences(test_seqs, name, "test", args.fm_batch_size)
+        t1 = time.perf_counter()
+        log_efficiency(name, f"fm_{args.model.split('/')[-1]}", Y_train.shape[1], t1 - t0)
 
         # ── Train RF ──
         rf = train_rf(Y_train.astype(np.float32), train_labels, n_classes)

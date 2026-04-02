@@ -1,0 +1,9 @@
+| method | MCC | AUROC | F1 | Accuracy |
+|---|---|---|---|---|
+| kmer_k4 | 57 | 57 | 57 | 57 |
+| kmer_k5 | 57 | 57 | 57 | 57 |
+| kmer_k6 | 57 | 57 | 57 | 57 |
+| kmer_multi_k4_5_6 | 57 | 57 | 57 | 57 |
+| fm_NTv3_650M_pre | 57 | 57 | 57 | 57 |
+| fm_hyenadna-medium-160k-seqlen-hf | 57 | 57 | 57 | 57 |
+| fm_DNABERT-2-117M | 17 | 17 | 17 | 17 |

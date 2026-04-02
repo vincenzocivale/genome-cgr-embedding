@@ -23,7 +23,8 @@ def discover_datasets(data_root: str) -> list:
     """
     data_root = os.path.abspath(data_root)
     datasets = []
-    for dirpath, _dirnames, filenames in os.walk(data_root):
+    # Follow symlinks to support dataset subsets built via symlink or bind mounts.
+    for dirpath, _dirnames, filenames in os.walk(data_root, followlinks=True):
         if "train.csv" in filenames and "test.csv" in filenames:
             rel = os.path.relpath(dirpath, data_root)
             datasets.append({

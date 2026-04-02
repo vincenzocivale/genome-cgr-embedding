@@ -12,14 +12,16 @@ import argparse
 import sys
 import os
 
+import time
 import numpy as np
 from tqdm import tqdm
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from src.data.loader import discover_datasets, load_dataset
-from src.fm_experiment.kmer_features import extract_kmer_features
+from src.fm_experiment.kmer_features import extract_kmer_features, kmer_from_grids
 from src.fm_experiment.records import load_records, has_kmer, write_kmer, RECORDS_CSV
+from src.fm_experiment.efficiency import log_efficiency
 from src.core.fcgr import batch_fcgr
 from src.core.kmer import KmerEmbedder
 from sklearn.ensemble import RandomForestClassifier
@@ -118,16 +120,19 @@ def main():
             completed += 1
 
             if not has_kmer(name, k, records):
-                embedder = KmerEmbedder(k_size=k, normalize=True)
-                X_train = np.array([embedder.compute_embedding(g) for g in grids_train])
-                X_test = np.array([embedder.compute_embedding(g) for g in grids_test])
+                t0 = time.perf_counter()
+                X_train = kmer_from_grids(grids_train, k, normalize="l1")
+                X_test = kmer_from_grids(grids_test, k, normalize="l1")
+                t1 = time.perf_counter()
+
+                log_efficiency(name, f"kmer_k{k}", X_train.shape[1], t1 - t0)
                 rf = train_rf(X_train, train_labels, n_classes)
                 metrics = eval_rf(rf, X_test, test_labels, n_classes)
                 write_kmer(name, k, metrics)
                 records = load_records(RECORDS_CSV)
 
-            pbar.update(1)
-            pbar.set_description(f"[{name} k={k}] {completed}/{n_total}")
+                pbar.update(1)
+                pbar.set_description(f"[{name} k={k}] {completed}/{n_total}")
 
     pbar.close()
     print(f"\n✅ Completato! {n_total}/{n_total} task")
