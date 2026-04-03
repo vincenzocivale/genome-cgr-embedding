@@ -51,10 +51,8 @@ from src.fm_experiment.kmer_features import kmer_from_grids
 
 # ── paths ──────────────────────────────────────────────────────────────────────
 
-LRA_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "genomics-long-range-benchmark")
-)
-HG38_FA = "/data/methilation_dataset/Homo_sapiens_assembly38.fasta"
+LRA_DIR = "/raid/DATASETS/genomics-long-range-benchmark"
+HG38_FA = "/raid/DATASETS/genomics-long-range-benchmark/Homo_sapiens_assembly38.fasta"
 LRA_RECORDS_CSV = "results/lra_records.csv"
 
 # ── RF config ──────────────────────────────────────────────────────────────────

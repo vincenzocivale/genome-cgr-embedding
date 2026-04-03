@@ -42,6 +42,12 @@ def _is_char_level(model_name: str) -> bool:
 class FMEmbedder:
     """Extract and cache mean-pooled embeddings from a pre-trained FM."""
 
+    # DNABERT-2 ALiBi matrix grows as O(heads * seqlen^2); cap at 4096 tokens
+    _MAX_LENGTH: dict[str, int] = {
+        "zhihan1996/DNABERT-2-117M": 4096,
+    }
+    _MAX_LENGTH_FALLBACK = 32768
+
     def __init__(
         self,
         model_name: str = "InstaDeepAI/NTv3_650M_pre",
@@ -51,13 +57,14 @@ class FMEmbedder:
         self.cache_dir = cache_dir
         self.device = _get_device()
         self._char_level = _is_char_level(model_name)
+        self.max_length = self._MAX_LENGTH.get(model_name, self._MAX_LENGTH_FALLBACK)
 
         print(f"Loading model {model_name} on {self.device} ...")
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True
         )
-        # fp16 only makes sense on CUDA; fall back to fp32 on CPU/MPS
-        load_dtype = torch.float16 if self.device.type == "cuda" else torch.float32
+        # bfloat16 on CUDA (NTv3 internally only autocasts to bfloat16); fp32 on CPU/MPS
+        load_dtype = torch.bfloat16 if self.device.type == "cuda" else torch.float32
 
         if _is_automodel(model_name):
             # DNABERT-2: BertConfig in older checkpoints lacks pad_token_id;
@@ -94,11 +101,19 @@ class FMEmbedder:
             finally:
                 PreTrainedModel.get_init_context = _orig_get_init_context
         else:
+            from transformers import AutoConfig
+            cfg = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+            if self.device.type == "cuda":
+                cfg.embedding_compute_dtype = "bfloat16"
+                cfg.stem_compute_dtype = "bfloat16"
+                cfg.down_convolution_compute_dtype = "bfloat16"
             self.model = AutoModelForMaskedLM.from_pretrained(
-                model_name, trust_remote_code=True, torch_dtype=load_dtype,
+                model_name, config=cfg, trust_remote_code=True, torch_dtype=load_dtype,
             )
         self.model.eval()
         self.model.to(self.device)
+        if self.device.type == "cuda":
+            self.model.bfloat16()
         print("Model ready.")
 
     # ------------------------------------------------------------------
@@ -116,6 +131,8 @@ class FMEmbedder:
                 batch_seqs,
                 add_special_tokens=False,
                 padding=True,
+                truncation=True,
+                max_length=self.max_length,
                 return_tensors="pt",
             )
         else:
@@ -124,6 +141,8 @@ class FMEmbedder:
                 batch_seqs,
                 add_special_tokens=False,
                 padding=True,
+                truncation=True,
+                max_length=self.max_length,
                 pad_to_multiple_of=128,
                 return_tensors="pt",
             )
