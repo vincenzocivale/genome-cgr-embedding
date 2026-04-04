@@ -182,7 +182,12 @@ class FMEmbedder:
         """
         path = self._cache_path(dataset_name, split)
         if os.path.exists(path):
-            return np.load(path)["embeddings"]
+            try:
+                return np.load(path)["embeddings"]
+            except Exception:
+                import warnings
+                warnings.warn(f"Corrupted cache file {path}, deleting and re-embedding.")
+                os.remove(path)
 
         all_embs: list[np.ndarray] = []
         pad_id = self.tokenizer.pad_token_id

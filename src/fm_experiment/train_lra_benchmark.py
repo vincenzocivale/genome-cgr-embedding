@@ -49,6 +49,29 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from src.core.fcgr import batch_fcgr
 from src.fm_experiment.kmer_features import kmer_from_grids
 
+# ── one-hot encoding ───────────────────────────────────────────────────────────
+
+_NUC_IDX = {"A": 0, "C": 1, "G": 2, "T": 3}
+
+def onehot_encode(sequences: np.ndarray, window: int) -> np.ndarray:
+    """
+    One-hot encode the central `window` bp of each sequence.
+    Returns (N, 4*window) float32 array.
+    Unknown nucleotides (N, etc.) are encoded as all-zeros.
+    """
+    N = len(sequences)
+    X = np.zeros((N, 4 * window), dtype=np.float32)
+    for i, seq in enumerate(sequences):
+        seq = seq.upper()
+        mid = len(seq) // 2
+        half = window // 2
+        fragment = seq[mid - half: mid - half + window]
+        for j, nuc in enumerate(fragment):
+            idx = _NUC_IDX.get(nuc)
+            if idx is not None:
+                X[i, j * 4 + idx] = 1.0
+    return X
+
 # ── paths ──────────────────────────────────────────────────────────────────────
 
 LRA_DIR = "/raid/DATASETS/genomics-long-range-benchmark"
@@ -465,6 +488,9 @@ def main():
     parser.add_argument("--model", default=None,
                         help="FM model (opzionale). Es: InstaDeepAI/NTv3_650M_pre")
     parser.add_argument("--fm-batch-size", type=int, default=32)
+    parser.add_argument("--onehot-windows", nargs="+", type=int, default=[],
+                        metavar="W",
+                        help="One-hot encode central W bp (es: --onehot-windows 512 1024)")
     parser.add_argument("--n-workers", type=int, default=8)
     parser.add_argument("--hg38", default=HG38_FA,
                         help=f"Path a hg38 FASTA (default: {HG38_FA})")
@@ -559,6 +585,26 @@ def main():
                 write_result(task, col_prefix, metrics, LRA_RECORDS_CSV)
         else:
             print(f"  [skip] tutti i k-mer già presenti")
+
+        # ── One-hot ──
+        for W in args.onehot_windows:
+            col_prefix = f"onehot_{W}bp"
+            if has_result(task, col_prefix, is_regression, LRA_RECORDS_CSV):
+                print(f"  [skip] {col_prefix}")
+                continue
+            print(f"  One-hot encoding finestra centrale {W} bp ...")
+            X_train = onehot_encode(train_seqs, W)
+            X_test  = onehot_encode(test_seqs,  W)
+            print(f"  Training RF {col_prefix} ...")
+            if is_regression:
+                rf = train_rf_regressor(X_train, train_labels)
+                metrics = eval_rf_regressor(rf, X_test, test_labels)
+                print(f"  {col_prefix}: R2={metrics['R2']:.4f} Spearman={metrics['Spearman']:.4f}")
+            else:
+                rf = train_rf_classifier(X_train, train_labels, n_classes)
+                metrics = eval_rf_classifier(rf, X_test, test_labels, n_classes)
+                print(f"  {col_prefix}: MCC={metrics['MCC']:.4f} AUROC={metrics['AUROC']:.4f}")
+            write_result(task, col_prefix, metrics, LRA_RECORDS_CSV)
 
         # ── FM ──
         if fm is not None:
