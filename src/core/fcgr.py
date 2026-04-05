@@ -38,31 +38,6 @@ def compute_fcgr(seq: str, grid_size: int = 128) -> np.ndarray:
     return mat
 
 
-def compute_cgr_coords(seq: str) -> np.ndarray:
-    """
-    Compute the stream of CGR 2D coordinates for a DNA sequence.
-
-    Returns an (N, 2) array where N is the number of valid bases.
-    Coordinates are in [0, 1]^2.
-    Used by codebook-based methods (KMeans, GMM) that operate
-    directly on the point cloud without materialising the grid.
-    """
-    coords = []
-    x, y = 0.5, 0.5
-
-    for b in seq.upper():
-        if b not in MAPPING:
-            continue
-        vx, vy = MAPPING[b]
-        x = (x + vx) / 2
-        y = (y + vy) / 2
-        coords.append((x, y))
-
-    if not coords:
-        return np.zeros((0, 2), dtype=np.float32)
-    return np.array(coords, dtype=np.float32)
-
-
 def _fcgr_worker(seq: str, grid_size: int) -> np.ndarray:
     return compute_fcgr(seq, grid_size)
 

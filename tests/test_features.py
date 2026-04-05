@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.fm_experiment.kmer_features import (
+from src.features.kmer_features import (
     extract_weighted_multiscale_kmer_features,
     extract_wavelet_features,
 )
