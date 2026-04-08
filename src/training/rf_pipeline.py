@@ -37,6 +37,16 @@ def train_rf(X_train, y_train, n_classes):
     return gs
 
 
+def train_rf_fast(X_train, y_train, n_classes, n_jobs=4):
+    """Train RF without grid search (500 trees, sqrt features, depth 20)."""
+    rf = RandomForestClassifier(
+        n_estimators=500, max_features="sqrt", max_depth=20,
+        min_samples_split=2, n_jobs=n_jobs, random_state=42,
+    )
+    rf.fit(X_train, y_train)
+    return rf
+
+
 def eval_rf(model, X_test, y_test, n_classes):
     """Evaluate a classifier on the test set. Returns MCC, AUROC, F1, Accuracy."""
     y_pred = model.predict(X_test)

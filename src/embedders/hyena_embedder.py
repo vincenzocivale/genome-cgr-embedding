@@ -52,12 +52,12 @@ class HyenaEmbedder:
         batch_size: int = 8,
     ) -> np.ndarray:
         """
-        Return (N, embed_dim) float16 array of mean-pooled embeddings.
+        Return (N, embed_dim) float32 array of mean-pooled embeddings.
 
         HyenaDNA usa single-char tokenization (A,C,G,T).
         Output: hidden state medio su tutti i token non-padding.
 
-        Results are cached to disk as compressed .npz (float16).
+        Results are cached to disk as compressed .npz (float32).
         """
         path = self._cache_path(dataset_name, split)
         if os.path.exists(path):
@@ -97,9 +97,8 @@ class HyenaEmbedder:
             pad_id = self.tokenizer.pad_token_id
             mask = (tokens["input_ids"] != pad_id).unsqueeze(-1).float()  # (B, L, 1)
             pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)  # (B, D)
-            all_embs.append(pooled.cpu().to(torch.float16).numpy())
+            all_embs.append(pooled.cpu().float().numpy())
 
-        # float16: halves disk space vs float32
         embeddings = np.concatenate(all_embs, axis=0).astype(np.float16)
 
         os.makedirs(os.path.dirname(path), exist_ok=True)

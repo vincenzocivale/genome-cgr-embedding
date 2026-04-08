@@ -6,7 +6,7 @@ Supports:
   - HyenaDNA  (LongSafari/hyenadna-*-hf)       AutoModel             char-level tokenization
   - DNABERT-2 (zhihan1996/DNABERT-2-117M)       AutoModel             BPE tokenization
 
-Produces mean-pooled sequence-level embeddings with disk caching in .npz (float16).
+Produces mean-pooled sequence-level embeddings with disk caching in .npz (float32).
 """
 
 import os
@@ -168,9 +168,9 @@ class FMEmbedder:
         batch_size: int = 32,
     ) -> np.ndarray:
         """
-        Return (N, embed_dim) float16 array of mean-pooled embeddings.
+        Return (N, embed_dim) float32 array of mean-pooled embeddings.
 
-        Results are cached to disk as compressed .npz (float16).
+        Results are cached to disk as compressed .npz (float32).
         Cache path includes model name to avoid collisions between FMs.
         """
         path = self._cache_path(dataset_name, split)
@@ -198,7 +198,7 @@ class FMEmbedder:
             input_ids_dev = input_ids.to(self.device)
             mask = (input_ids_dev != pad_id).unsqueeze(-1).to(hidden.dtype)  # (B, L, 1)
             pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)  # (B, D)
-            all_embs.append(pooled.cpu().to(torch.float16).numpy())
+            all_embs.append(pooled.cpu().float().numpy())
 
         embeddings = np.concatenate(all_embs, axis=0).astype(np.float16)
 

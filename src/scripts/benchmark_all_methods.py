@@ -39,6 +39,10 @@ def main():
     parser.add_argument("--model", default="InstaDeepAI/NTv3_650M_pre")
     parser.add_argument("--fm-batch-size", type=int, default=32)
     parser.add_argument("--tok-batch-size", type=int, default=64)
+    parser.add_argument("--evo2-layer", type=str, default=None,
+                        help="Evo2 layer name for embeddings (optional).")
+    parser.add_argument("--evo2-max-length", type=int, default=None,
+                        help="Optional max length (bp) for Evo2 tokenization.")
     args = parser.parse_args()
 
     if args.methods == "all":
@@ -92,20 +96,28 @@ def main():
         ])
 
     if "fm" in methods:
-        _run([
+        cmd = [
             py, _script_path("train_fm_rf.py"),
             "--data-root", args.data_root,
             "--model", args.model,
             "--fm-batch-size", str(args.fm_batch_size),
-        ])
+        ]
+        if args.evo2_layer:
+            cmd.extend(["--evo2-layer", args.evo2_layer])
+        if args.evo2_max_length:
+            cmd.extend(["--evo2-max-length", str(args.evo2_max_length)])
+        _run(cmd)
 
     if "tok" in methods:
-        _run([
+        cmd = [
             py, _script_path("train_tok_rf.py"),
             "--data-root", args.data_root,
             "--model", args.model,
             "--batch-size", str(args.tok_batch_size),
-        ])
+        ]
+        if args.evo2_max_length:
+            cmd.extend(["--evo2-max-length", str(args.evo2_max_length)])
+        _run(cmd)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,9 @@ import torch
 
 def get_device() -> torch.device:
     """Return the best available compute device (CUDA > MPS > CPU)."""
+    env_dev = os.environ.get("CGR_DEVICE") or os.environ.get("GENOME_CGR_DEVICE")
+    if env_dev:
+        return torch.device(env_dev)
     if torch.cuda.is_available():
         return torch.device("cuda")
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():

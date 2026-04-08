@@ -41,16 +41,18 @@ def fit_and_evaluate(
     ridge = RidgeCV(alphas=alphas, fit_intercept=True, gcv_mode="auto")
     ridge.fit(X_train, Y_train)
 
-    Y_pred = ridge.predict(X_test)
+    Y_pred_test = ridge.predict(X_test)
+    Y_pred_train = ridge.predict(X_train)
 
-    r2_global = r2_score(Y_test, Y_pred, multioutput="uniform_average")
-    mse_global = mean_squared_error(Y_test, Y_pred)
+    r2_global = r2_score(Y_test, Y_pred_test, multioutput="uniform_average")
+    mse_global = mean_squared_error(Y_test, Y_pred_test)
 
     n_dims = Y_test.shape[1]
-    r2_per_dim = np.array([r2_score(Y_test[:, d], Y_pred[:, d]) for d in range(n_dims)])
-    mse_per_dim = np.array(
-        [mean_squared_error(Y_test[:, d], Y_pred[:, d]) for d in range(n_dims)]
-    )
+    # Vectorised per-dim metrics (avoids Python loop over 1024 dims)
+    ss_res = np.sum((Y_test - Y_pred_test) ** 2, axis=0)
+    ss_tot = np.sum((Y_test - Y_test.mean(axis=0)) ** 2, axis=0)
+    r2_per_dim = 1.0 - ss_res / np.maximum(ss_tot, 1e-12)
+    mse_per_dim = ss_res / Y_test.shape[0]
 
     return {
         "r2_global": r2_global,
@@ -63,4 +65,7 @@ def fit_and_evaluate(
         "n_test": X_test.shape[0],
         "n_kmer_features": X_train.shape[1],
         "n_embed_dims": n_dims,
+        "model": ridge,
+        "Y_pred_train": Y_pred_train,
+        "Y_pred_test": Y_pred_test,
     }

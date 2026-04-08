@@ -143,3 +143,4 @@ Datasets are expected as `train.csv` / `test.csv` files:
 | NTv3 650M | `InstaDeepAI/NTv3_650M_pre` |
 | HyenaDNA medium 160k | `LongSafari/hyenadna-medium-160k-seqlen-hf` |
 | DNABERT-2 | `zhihan1996/DNABERT-2-117M` |
+| Evo2 7B | `evo2_7b` (requires `evo2` package) |

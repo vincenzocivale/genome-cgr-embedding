@@ -5,7 +5,7 @@ Extracts vectors from the FM's embedding look-up table BEFORE the
 transformer/Hyena layers, capturing purely static token representations
 without contextual refinement.
 
-Output: (N, embed_dim) float16, mean-pooled over non-padding tokens.
+Output: (N, embed_dim) float32, mean-pooled over non-padding tokens.
 Results are cached to disk as .npz.
 """
 
@@ -133,7 +133,7 @@ class TokenizerEmbedder:
         batch_size: int = 64,
     ) -> np.ndarray:
         """
-        Return (N, embed_dim) float16 array of mean-pooled embedding-layer outputs.
+        Return (N, embed_dim) float32 array of mean-pooled embedding-layer outputs.
 
         Molto più veloce dell'embedding FM completo: solo un lookup + mean pool.
         """
@@ -157,7 +157,7 @@ class TokenizerEmbedder:
             # Mean-pool over non-padding tokens
             mask = (input_ids != pad_id).unsqueeze(-1).float()  # (B, L, 1)
             pooled = (token_embs * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
-            all_embs.append(pooled.cpu().to(torch.float16).numpy())
+            all_embs.append(pooled.cpu().float().numpy())
 
         embeddings = np.concatenate(all_embs, axis=0).astype(np.float16)
 

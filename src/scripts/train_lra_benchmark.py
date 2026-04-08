@@ -427,6 +427,10 @@ def main():
     parser.add_argument("--model", default=None,
                         help="FM model (opzionale). Es: InstaDeepAI/NTv3_650M_pre")
     parser.add_argument("--fm-batch-size", type=int, default=32)
+    parser.add_argument("--evo2-layer", type=str, default=None,
+                        help="Evo2 layer name for embeddings (optional).")
+    parser.add_argument("--evo2-max-length", type=int, default=None,
+                        help="Optional max length (bp) for Evo2 tokenization.")
     parser.add_argument("--onehot-windows", nargs="+", type=int, default=[],
                         metavar="W",
                         help="One-hot encode central W bp (es: --onehot-windows 512 1024)")
@@ -460,7 +464,16 @@ def main():
     if args.model:
         from src.embedders.fm_embedder import FMEmbedder
         from src.embedders.hyena_embedder import HyenaEmbedder
-        if "hyenadna" in args.model.lower():
+        from src.embedders.evo2_embedder import Evo2Embedder
+        model_lc = args.model.lower()
+        if model_lc.startswith("evo2"):
+            fm = Evo2Embedder(
+                model_name=args.model,
+                cache_dir="cache/lra_fm_embeddings",
+                layer_name=args.evo2_layer,
+                max_length=args.evo2_max_length,
+            )
+        elif "hyenadna" in model_lc:
             fm = HyenaEmbedder(model_name=args.model, cache_dir="cache/lra_hyena_embeddings")
         else:
             fm = FMEmbedder(model_name=args.model, cache_dir="cache/lra_fm_embeddings")

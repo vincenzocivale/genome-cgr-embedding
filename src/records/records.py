@@ -6,7 +6,6 @@ Column schema:
   - kmer_k{K}_{metric}              RF results for k-mer features at size K
   - fm_{model_tag}_{metric}         RF results for FM embeddings
   - ridge_k{K}_fm_{model_tag}_{m}   Ridge regression metrics
-
 RF metrics  : MCC, AUROC, F1, Accuracy
 Ridge metrics: R2, MSE
 
@@ -18,6 +17,8 @@ import os
 import pandas as pd
 
 RECORDS_CSV = "results/classification/records.csv"
+RECORDS_PCA_CSV = "results/classification/records_pca.csv"
+RECORDS_DECOMP_CSV = "results/classification/records_decomposition.csv"
 RECORDS_MI_CSV = "results/exploratory/records_mi.csv"
 RF_METRICS  = ["MCC", "AUROC", "F1", "Accuracy"]
 RIDGE_METRICS = ["R2", "MSE"]
@@ -48,6 +49,14 @@ def ridge_col(k: int, model_name: str, metric: str) -> str:
 
 def tok_col(model_name: str, metric: str) -> str:
     return f"tok_{_model_tag(model_name)}_{metric}"
+
+
+def proj_col(k: int, model_name: str, metric: str) -> str:
+    return f"proj_k{k}_{_model_tag(model_name)}_{metric}"
+
+
+def resid_col(k: int, model_name: str, metric: str) -> str:
+    return f"resid_k{k}_{_model_tag(model_name)}_{metric}"
 
 
 def multiscale_col(k_values: tuple[int, ...], metric: str) -> str:
@@ -403,3 +412,124 @@ def get_ridge(dataset: str, k: int, model_name: str,
     if not has_ridge(dataset, k, model_name, df):
         return None
     return {m: df.loc[dataset, ridge_col(k, model_name, m)] for m in RIDGE_METRICS}
+
+
+# ── decomposition columns ─────────────────────────────────────────────────────
+
+def load_decomp_records(path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
+    if os.path.exists(path):
+        df = pd.read_csv(path, index_col=0)
+        df.index.name = "dataset"
+        return df
+    return pd.DataFrame()
+
+
+def has_decomp_ridge(dataset: str, k: int, model_name: str,
+                     df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = ridge_col(k, model_name, RIDGE_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_proj(dataset: str, k: int, model_name: str,
+             df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = proj_col(k, model_name, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_resid(dataset: str, k: int, model_name: str,
+              df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = resid_col(k, model_name, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+DECOMP_RIDGE_METRICS = ["R2"]
+DECOMP_RF_METRICS = ["MCC", "AUROC"]
+
+
+def write_decomp_ridge(dataset: str, k: int, model_name: str,
+                       ridge_metrics: dict,
+                       path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
+    """ridge_metrics keys: R2"""
+    df = _ensure_row(load_decomp_records(path), dataset)
+    for m in DECOMP_RIDGE_METRICS:
+        df.loc[dataset, ridge_col(k, model_name, m)] = ridge_metrics[m]
+    _save(df, path)
+    return df
+
+
+def write_proj(dataset: str, k: int, model_name: str, rf_metrics: dict,
+               path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC"""
+    df = _ensure_row(load_decomp_records(path), dataset)
+    for m in DECOMP_RF_METRICS:
+        df.loc[dataset, proj_col(k, model_name, m)] = rf_metrics[m]
+    _save(df, path)
+    return df
+
+
+def write_resid(dataset: str, k: int, model_name: str, rf_metrics: dict,
+                path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC"""
+    df = _ensure_row(load_decomp_records(path), dataset)
+    for m in DECOMP_RF_METRICS:
+        df.loc[dataset, resid_col(k, model_name, m)] = rf_metrics[m]
+    _save(df, path)
+    return df
+
+
+# ── PCA columns ───────────────────────────────────────────────────────────────
+
+def pca_kmer_col(k: int, metric: str) -> str:
+    return f"pca_kmer_k{k}_{metric}"
+
+
+def pca_fm_col(model_name: str, metric: str) -> str:
+    return f"pca_fm_{_model_tag(model_name)}_{metric}"
+
+
+def has_pca_kmer(dataset: str, k: int, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = pca_kmer_col(k, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_pca_fm(dataset: str, model_name: str, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = pca_fm_col(model_name, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def load_pca_records(path: str = RECORDS_PCA_CSV) -> pd.DataFrame:
+    if os.path.exists(path):
+        df = pd.read_csv(path, index_col=0)
+        df.index.name = "dataset"
+        return df
+    return pd.DataFrame()
+
+
+def write_pca_kmer(dataset: str, k: int, rf_metrics: dict,
+                   path: str = RECORDS_PCA_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC, F1, Accuracy"""
+    df = _ensure_row(load_pca_records(path), dataset)
+    for m in RF_METRICS:
+        df.loc[dataset, pca_kmer_col(k, m)] = rf_metrics[m]
+    _save(df, path)
+    return df
+
+
+def write_pca_fm(dataset: str, model_name: str, rf_metrics: dict,
+                 path: str = RECORDS_PCA_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC, F1, Accuracy"""
+    df = _ensure_row(load_pca_records(path), dataset)
+    for m in RF_METRICS:
+        df.loc[dataset, pca_fm_col(model_name, m)] = rf_metrics[m]
+    _save(df, path)
+    return df
