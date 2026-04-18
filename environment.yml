@@ -4,7 +4,6 @@ channels:
   - conda-forge
   - huggingface
   - pytorch
-  - bioconda
 dependencies:
   - _libgcc_mutex=0.1=main
   - _openmp_mutex=5.1=1_gnu
@@ -196,7 +195,6 @@ dependencies:
   - traitlets=5.14.3=pyhd8ed1ab_1
   - typing-extensions=4.15.0=py312h06a4308_0
   - typing_extensions=4.15.0=py312h06a4308_0
-  - tzdata=2026a=he532380_0
   - urllib3=2.6.3=py312h06a4308_0
   - utf8proc=2.6.1=h5eee18b_1
   - wcwidth=0.6.0=pyhd8ed1ab_0
@@ -214,11 +212,16 @@ dependencies:
   - zstd=1.5.7=h11fc155_0
   - pip:
       - annotated-doc==0.0.4
+      - annotated-types==0.7.0
+      - arrow==1.4.0
       - attrs==25.4.0
+      - authlib==1.6.9
       - beautifulsoup4==4.14.3
       - bleach==6.3.0
       - click==8.3.1
+      - codecarbon==3.2.6
       - contourpy==1.3.3
+      - cryptography==46.0.7
       - cycler==0.12.1
       - defusedxml==0.7.1
       - einops==0.8.2
@@ -226,8 +229,8 @@ dependencies:
       - filelock==3.20.0
       - fonttools==4.62.1
       - fsspec==2025.12.0
-      - hf-xet==1.4.2
-      - huggingface-hub==1.7.1
+      - hf-xet==1.4.3
+      - huggingface-hub==1.9.1
       - jsonschema==4.26.0
       - jsonschema-specifications==2025.9.1
       - jupyterlab-pygments==0.3.0
@@ -248,13 +251,21 @@ dependencies:
       - nvidia-curand-cu12==10.3.2.106
       - nvidia-cusolver-cu12==11.4.5.107
       - nvidia-cusparse-cu12==12.1.0.106
+      - nvidia-ml-py==13.595.45
       - nvidia-nccl-cu12==2.21.5
       - nvidia-nvjitlink-cu12==12.9.86
       - nvidia-nvtx-cu12==12.1.105
       - pandocfilters==1.5.1
       - pillow==12.1.1
+      - prometheus-client==0.24.1
+      - py-cpuinfo==9.0.0
+      - pycountry==26.2.16
+      - pydantic==2.12.5
+      - pydantic-core==2.41.5
       - pyfaidx==0.9.0.4
       - pyparsing==3.3.2
+      - questionary==2.1.1
+      - rapidfuzz==3.14.5
       - referencing==0.37.0
       - regex==2026.2.28
       - rich==14.3.3
@@ -271,7 +282,8 @@ dependencies:
       - transformers==5.3.0
       - triton==3.1.0
       - typer==0.24.1
+      - typing-inspection==0.4.2
+      - tzdata==2026.1
       - webencodings==0.5.1
       - xgboost==3.2.0
-      - codecarbon==3.2.6
-prefix: /home/oem/miniconda3/envs/cgr_bench
+prefix: /home/vcivale/miniconda3/envs/cgr_bench
