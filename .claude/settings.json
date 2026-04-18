@@ -23,7 +23,13 @@
       "Read(//home/oem/**)",
       "Read(//home/oem/.local/**)",
       "Bash(conda run:*)",
-      "Bash(grep -E \"^\\(Dataset|---|-|EMP|deep|enh|genom|iDNA|mouse|$\\)\")"
+      "Bash(grep -E \"^\\(Dataset|---|-|EMP|deep|enh|genom|iDNA|mouse|$\\)\")",
+      "Bash(sed 's/_[A-Z].*$//')",
+      "Bash(grep -r \"model_name\\\\|model_size\\\\|parameters\" /home/vcivale/genome-cgr-embedding/src/embedders/*.py)",
+      "Read(//data/**)",
+      "Bash(ls /data/)",
+      "Read(//raid/DATASETS/**)",
+      "Read(//tmp/**)"
     ],
     "additionalDirectories": [
       "/data2/home/vcivale/genome-cgr-embedding",

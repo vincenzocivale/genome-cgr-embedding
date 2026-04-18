@@ -103,11 +103,15 @@ def main():
                         help="Do not delete embedding cache after each dataset")
     parser.add_argument("--datasets", nargs="*", default=None,
                         help="Filter datasets (exact match on name)")
+    parser.add_argument("--reverse", action="store_true",
+                        help="Process datasets in reverse order")
     args = parser.parse_args()
 
     all_datasets = discover_datasets(args.data_root)
     if args.datasets:
         all_datasets = [d for d in all_datasets if d["name"] in args.datasets]
+    if args.reverse:
+        all_datasets = list(reversed(all_datasets))
 
     model_tag = args.model.split("/")[-1]
     print(f"\nModel : {model_tag}")

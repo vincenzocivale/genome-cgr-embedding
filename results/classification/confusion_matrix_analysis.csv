@@ -1,0 +1,13 @@
+dataset,model,class,precision,recall,f1,support
+splice/splice_site_type_DNABERT,kmer_k6,acceptor,0.9673202614379085,0.04933333333333333,0.09387884554392642,3000
+splice/splice_site_type_DNABERT,kmer_k6,donor,0.8834355828220859,0.048,0.09105279797660448,3000
+splice/splice_site_type_DNABERT,kmer_k6,neither,0.5743773838905093,0.9990893716664498,0.7294139994301454,7687
+splice/splice_site_type_DNABERT,fm_NTv3_650M_pre,acceptor,0.673836389280677,0.637,0.6549006168608635,3000
+splice/splice_site_type_DNABERT,fm_NTv3_650M_pre,donor,0.7053811659192825,0.5243333333333333,0.601529636711281,3000
+splice/splice_site_type_DNABERT,fm_NTv3_650M_pre,neither,0.7943394037814638,0.8908546897359177,0.8398332106941379,7687
+genomic_benchmark/regulatory_region_type,kmer_k6,enhancer,0.7149374910188245,0.9309102815979043,0.8087536066972811,21378
+genomic_benchmark/regulatory_region_type,kmer_k6,open_chromatin,0.8601917723476648,0.7373137494034678,0.794026952946551,18859
+genomic_benchmark/regulatory_region_type,kmer_k6,promoter,0.956534422403734,0.7505149919890135,0.8410927279722971,17476
+genomic_benchmark/regulatory_region_type,fm_NTv3_650M_pre,enhancer,0.598494689386414,0.7327626531948732,0.6588576716016151,21378
+genomic_benchmark/regulatory_region_type,fm_NTv3_650M_pre,open_chromatin,0.7746455563524025,0.7445781854817328,0.7593143351538421,18859
+genomic_benchmark/regulatory_region_type,fm_NTv3_650M_pre,promoter,0.6743960632269609,0.5175669489585718,0.5856643356643356,17476
