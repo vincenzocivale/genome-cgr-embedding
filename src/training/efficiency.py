@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 
 
-EFFICIENCY_CSV = "results/exploratory/efficiency.csv"
+EFFICIENCY_CSV = "results/efficiency/efficiency.csv"
 
 
 def log_efficiency(dataset: str, method: str, feat_dim: int,

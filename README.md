@@ -2,7 +2,7 @@
 
 Benchmarking DNA sequence representations for genomic classification.
 
-This project compares the **informational quality** of k-mer frequency vectors (derived from Chaos Game Representation) against embeddings produced by pre-trained **genomic Foundation Models** (NTv3, HyenaDNA, DNABERT-2), using Random Forest classifiers as the downstream probe.
+This project compares the **informational quality** of k-mer frequency vectors (derived from Chaos Game Representation) against embeddings produced by pre-trained **genomic Foundation Models** (NTv3, HyenaDNA, DNABERT-2), using Random Forest classifiers and linear probes as the downstream probe.
 
 A supplementary experiment fits Ridge Regression from k-mer features to FM embeddings, measuring how much of the FM's information is already captured by k-mer statistics.
 
@@ -24,57 +24,52 @@ A supplementary experiment fits Ridge Regression from k-mer features to FM embed
 
 ---
 
+## Documentation
+
+- [Getting started and installation](docs/getting_started.md)
+- [Experiment reference](docs/experiments.md)
+- [Results file schema](docs/results_schema.md)
+- [Missing / in-progress experiments](docs/missing_experiments.md)
+
+---
+
 ## Repository structure
 
 ```
 genome-cgr-embedding/
 ├── src/
 │   ├── core/                # FCGR and QuadTree algorithms
-│   │   ├── fcgr.py
-│   │   └── quadtree.py
 │   ├── data/                # Dataset discovery and loading
-│   │   └── loader.py
-│   ├── embedders/           # FM embedding extractors
-│   │   ├── embedding_cache.py   # Shared device detection & cache I/O
-│   │   ├── fm_embedder.py       # NTv3, HyenaDNA, DNABERT-2
-│   │   ├── hyena_embedder.py    # HyenaDNA-specific wrapper
-│   │   └── tokenizer_embedder.py
-│   ├── features/            # Feature extraction
-│   │   └── kmer_features.py
-│   ├── training/            # Shared RF pipeline and utilities
-│   │   ├── rf_pipeline.py       # train_rf, eval_rf (shared across all scripts)
-│   │   ├── ridge_mapping.py
-│   │   └── efficiency.py
-│   ├── analysis/            # Post-hoc analysis
-│   │   ├── compute_mi.py
-│   │   ├── info_theory_pipeline.py
-│   │   └── fill_dataset_info.py
-│   ├── records/             # Results persistence
-│   │   └── records.py
-│   └── scripts/             # Runnable experiment scripts
-│       ├── train_kmer_rf.py
-│       ├── train_fm_rf.py
-│       ├── train_multiscale_kmer_rf.py
-│       ├── train_ridge.py
-│       ├── train_ridge_multiscale.py
-│       ├── train_lra_benchmark.py
-│       ├── benchmark_all_methods.py
-│       └── ...
+│   ├── embedders/           # FM embedding extractors (NTv3, HyenaDNA, DNABERT-2)
+│   ├── features/            # K-mer feature extraction
+│   ├── training/            # RF, Ridge, Linear, MLP pipelines + efficiency logging
+│   ├── analysis/            # FDR, AUROC consistency, mutual information
+│   ├── records/             # Results persistence (CSV schema & helpers)
+│   └── scripts/
+│       ├── classification/  # RF + linear probe + canonical k-mer experiments
+│       ├── decomposition/   # Ridge/MLP k-mer→FM decomposition
+│       ├── regression/      # Long Range Arena benchmark
+│       ├── analysis/        # Motif analysis, confusion matrix, truncation
+│       └── utils/           # Benchmark runners, efficiency, migration
 ├── results/
-│   ├── classification/      # Main RF benchmark results
-│   │   └── records.csv
-│   ├── regression/          # Long Range Arena regression results
-│   │   └── lra_records.csv
+│   ├── classification/      # records_rf.csv, records_linear_probe.csv, records_canonical_kmer.csv
+│   ├── decomposition/       # records_decomposition.csv
+│   ├── regression/          # lra_records_rf.csv, lra_records_linear_probe.csv
+│   ├── analysis/            # fdr_results.csv, auroc_consistency.csv
+│   ├── efficiency/          # efficiency.csv, efficiency_gpu_parallel.csv
+│   ├── exploratory/         # fusion, MI, info_theory, splice motif overlap
 │   ├── concat/              # FM + k-mer concatenation experiments
-│   │   └── records_concat_best.csv
-│   └── exploratory/         # Exploratory analyses (MI, efficiency, fusion)
-├── notebooks/               # Jupyter analysis notebooks
-│   ├── results_overview.ipynb
-│   ├── paper_plots.ipynb
-│   └── linear__probe.ipynb
+│   └── figures/             # Publication-ready PDF figures
+├── docs/
+│   ├── getting_started.md
+│   ├── experiments.md
+│   ├── results_schema.md
+│   ├── missing_experiments.md
+│   └── background/          # Theory, ablation plans
+├── notebooks/               # Numbered Jupyter analysis notebooks
+├── scripts/                 # Paper figure export and stats audit
 ├── tests/
 ├── cache/                   # Pre-computed embeddings (.npz, git-ignored)
-├── notes/                   # Theoretical background
 └── environment.yml
 ```
 
@@ -87,36 +82,35 @@ conda env create -f environment.yml
 conda activate cgr_bench
 ```
 
+See [docs/getting_started.md](docs/getting_started.md) for full setup instructions.
+
 ---
 
 ## Quick start
 
 ```bash
-# 1. k-mer RF (all classification datasets)
-python3 src/scripts/train_kmer_rf.py --k-values 4 5 6 --n-workers 8
+# 1. k-mer RF (all 57 classification datasets)
+python3 src/scripts/classification/train_kmer_rf.py --k-values 4 5 6 --n-workers 4
 
 # 2. FM embeddings + RF
-python3 src/scripts/train_fm_rf.py --model InstaDeepAI/NTv3_650M_pre
+CUDA_VISIBLE_DEVICES=0 python3 src/scripts/classification/train_fm_rf.py \
+    --model InstaDeepAI/NTv3_650M_pre
 
-# 3. Ridge mapping: how well do k-mers predict FM embeddings?
-python3 src/scripts/train_ridge.py \
-    --model InstaDeepAI/NTv3_650M_pre \
-    --k-values 4 5 6
+# 3. Ridge decomposition: how well do k-mers predict FM embeddings?
+CUDA_VISIBLE_DEVICES=0 python3 src/scripts/decomposition/train_decomposition.py \
+    --model InstaDeepAI/NTv3_650M_pre --mapper ridge --k-values 4 5 6
 
-# 4. Run all methods at once
-python3 src/scripts/benchmark_all_methods.py \
-    --methods kmer,multiscale,fm,tok \
-    --k-values 4 5 6 \
-    --model InstaDeepAI/NTv3_650M_pre \
-    --n-workers 8
+# 4. Linear probe (verify RF results)
+python3 src/scripts/classification/train_linear_probe.py --mode kmer --k-values 4 5 6
 
 # 5. Long Range Arena benchmark (requires genome FASTA)
-python3 src/scripts/train_lra_benchmark.py \
-    --k-values 4 5 6 \
-    --hg38 /path/to/hg38.fa
+python3 src/scripts/regression/train_lra_benchmark.py \
+    --k-values 4 5 6 --hg38 /path/to/hg38.fa
 ```
 
-Results are written incrementally to `results/classification/records.csv`; completed configurations are automatically skipped on re-runs.
+Results are written incrementally to `results/classification/records_rf.csv`; completed configurations are automatically skipped on re-runs.
+
+See [docs/experiments.md](docs/experiments.md) for the full experiment reference with all scripts and output files.
 
 ---
 
@@ -125,13 +119,10 @@ Results are written incrementally to `results/classification/records.csv`; compl
 Datasets are expected as `train.csv` / `test.csv` files:
 
 ```
-/data/genomic_bench/dna_foundation_benchmark/
-├── task_name_1/
+data/dna_foundation_benchmark/
+├── <category>/<task_name>/
 │   ├── train.csv   # columns: sequence, label
 │   └── test.csv
-└── task_name_2/
-    ├── train.csv
-    └── test.csv
 ```
 
 ---
@@ -143,4 +134,5 @@ Datasets are expected as `train.csv` / `test.csv` files:
 | NTv3 650M | `InstaDeepAI/NTv3_650M_pre` |
 | HyenaDNA medium 160k | `LongSafari/hyenadna-medium-160k-seqlen-hf` |
 | DNABERT-2 | `zhihan1996/DNABERT-2-117M` |
-| Evo2 7B | `evo2_7b` (requires `evo2` package) |
+
+> **Note:** Evo2 is excluded from all experiments.

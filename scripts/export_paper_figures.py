@@ -1,3 +1,13 @@
+"""
+Generate all publication-ready figures from results CSVs.
+
+Reads from results/ directories and writes PDFs to results/figures/.
+Must be run from the repository root.
+
+Usage:
+    python3 scripts/export_paper_figures.py
+"""
+
 import os
 import numpy as np
 import pandas as pd

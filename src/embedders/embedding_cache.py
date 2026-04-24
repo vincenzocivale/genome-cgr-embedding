@@ -27,6 +27,7 @@ def load_cached_embeddings(
     model_name: str,
     dataset_name: str,
     split: str,
+    pooling: str = "mean",
 ) -> np.ndarray | None:
     """Load embeddings from cache (.npz) if available, otherwise return None.
 
@@ -42,10 +43,20 @@ def load_cached_embeddings(
     safe_ds = dataset_name.replace("/", "__").replace("\\", "__")
 
     candidates = [
+        os.path.join(
+            "cache/fm_embeddings",
+            safe_model,
+            f"pooling_{pooling}",
+            safe_ds,
+            f"{split}.npz",
+        ),
         os.path.join("cache/fm_embeddings", safe_model, safe_ds, f"{split}.npz"),
         os.path.join("cache/fm_embeddings", safe_ds, f"{split}.npz"),
     ]
     if "hyenadna" in model_name.lower():
+        candidates.append(
+            os.path.join("cache/hyena_embeddings", f"pooling_{pooling}", safe_ds, f"{split}.npz")
+        )
         candidates.append(
             os.path.join("cache/hyena_embeddings", safe_ds, f"{split}.npz")
         )

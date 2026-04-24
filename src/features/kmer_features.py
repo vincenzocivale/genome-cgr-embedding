@@ -161,6 +161,92 @@ def extract_quadtree_features(
     return np.array(feats, dtype=np.float32)
 
 
+def _fcgr_index_to_kmer(idx: int, k: int) -> str:
+    """Convert flattened FCGR index to k-mer string."""
+    grid_size = 2 ** k
+    i = idx // grid_size
+    j = idx % grid_size
+    inv_map = {(0, 0): 'A', (1, 0): 'C', (1, 1): 'G', (0, 1): 'T'}
+    kmer = []
+    for t in range(k):
+        vx = (i >> t) & 1
+        vy = (j >> t) & 1
+        kmer.append(inv_map[(vx, vy)])
+    return ''.join(kmer)
+
+
+def _kmer_to_fcgr_index(kmer: str) -> int:
+    """Convert k-mer string to flattened FCGR index."""
+    k = len(kmer)
+    mapping = {'A': (0, 0), 'C': (1, 0), 'G': (1, 1), 'T': (0, 1)}
+    grid_size = 2 ** k
+    i, j = 0, 0
+    for t, b in enumerate(kmer):
+        vx, vy = mapping[b]
+        i |= (vx << t)
+        j |= (vy << t)
+    return i * grid_size + j
+
+
+def _reverse_complement(seq: str) -> str:
+    """Compute reverse complement of a DNA sequence."""
+    comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+    return ''.join(comp[b] for b in reversed(seq))
+
+
+_canonical_cache: dict = {}
+
+
+def _build_canonical_map(k: int) -> tuple:
+    """
+    Build canonical k-mer map (reverse-complement aware).
+
+    Returns:
+        canonical_map: (4^k,) int array mapping each kmer index to a canonical group index
+        n_canonical:   number of canonical groups (k=4->136, k=5->512, k=6->2080)
+    """
+    if k in _canonical_cache:
+        return _canonical_cache[k]
+
+    n_kmers = 4 ** k
+    canonical_idx = np.empty(n_kmers, dtype=np.int32)
+    for idx in range(n_kmers):
+        kmer = _fcgr_index_to_kmer(idx, k)
+        rc_idx = _kmer_to_fcgr_index(_reverse_complement(kmer))
+        canonical_idx[idx] = min(idx, rc_idx)
+
+    unique_canonical = sorted(set(canonical_idx.tolist()))
+    canon_to_group = {c: g for g, c in enumerate(unique_canonical)}
+    n_canonical = len(unique_canonical)
+    canonical_map = np.array(
+        [canon_to_group[canonical_idx[i]] for i in range(n_kmers)], dtype=np.int32
+    )
+    _canonical_cache[k] = (canonical_map, n_canonical)
+    return canonical_map, n_canonical
+
+
+def canonicalize_kmer_features(kmer_freqs: np.ndarray, k: int) -> np.ndarray:
+    """
+    Convert standard k-mer frequency vectors to canonical (RC-aware) features.
+
+    Input:  (N, 4^k)       L1-normalised k-mer frequencies (from kmer_from_grids)
+    Output: (N, n_canonical) L1-normalised canonical k-mer frequencies
+
+    n_canonical: k=4 -> 136, k=5 -> 512, k=6 -> 2080
+    """
+    n_kmers = 4 ** k
+    assert kmer_freqs.shape[1] == n_kmers, f"Expected {n_kmers} features, got {kmer_freqs.shape[1]}"
+
+    canonical_map, n_canonical = _build_canonical_map(k)
+
+    # Aggregation matrix (n_kmers, n_canonical): one-hot assignment
+    agg = np.zeros((n_kmers, n_canonical), dtype=np.float32)
+    agg[np.arange(n_kmers), canonical_map] = 1.0
+
+    result = kmer_freqs.astype(np.float32) @ agg  # (N, n_canonical)
+    return _normalize_l1(result)
+
+
 def extract_wavelet_features(
     sequences: np.ndarray,
     levels: int = 2,

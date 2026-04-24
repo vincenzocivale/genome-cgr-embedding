@@ -1,0 +1,39 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+Seq lengths : [250, 500, 1000]
+N sequences : 32
+Methods     : ['fm_NTv3_650M_pre', 'fm_DNABERT-2-117M']
+Output      : results/exploratory/efficiency_gpu_parallel.csv
+
+
+=======================================================
+  FM: fm_NTv3_650M_pre
+=======================================================
+Loading model InstaDeepAI/NTv3_650M_pre on cuda ...
+Model ready.
+[fm_NTv3_650M_pre]:   0%|          | 0/3 [00:00<?, ?len/s][fm_NTv3_650M_pre]:  33%|███▎      | 1/3 [00:01<00:03,  1.73s/len][fm_NTv3_650M_pre]:  67%|██████▋   | 2/3 [00:02<00:01,  1.08s/len][fm_NTv3_650M_pre]: 100%|██████████| 3/3 [00:03<00:00,  1.08s/len][fm_NTv3_650M_pre]: 100%|██████████| 3/3 [00:03<00:00,  1.15s/len]
+A new version of the following files was downloaded from https://huggingface.co/zhihan1996/DNABERT-2-117M:
+- bert_padding.py
+- flash_attn_triton.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+=======================================================
+  FM: fm_DNABERT-2-117M
+=======================================================
+Loading model zhihan1996/DNABERT-2-117M on cuda ...
+Traceback (most recent call last):
+  File "/data2/home/vcivale/genome-cgr-embedding/src/scripts/benchmark_efficiency.py", line 286, in <module>
+    main()
+  File "/data2/home/vcivale/genome-cgr-embedding/src/scripts/benchmark_efficiency.py", line 269, in main
+    eff_df = benchmark_fm(model_name, method_key, args.seq_lens,
+  File "/data2/home/vcivale/genome-cgr-embedding/src/scripts/benchmark_efficiency.py", line 139, in benchmark_fm
+    fm = FMEmbedder(model_name=model_name, cache_dir="cache/fm_embeddings")
+  File "/data2/home/vcivale/genome-cgr-embedding/src/scripts/../../src/embedders/fm_embedder.py", line 99, in __init__
+    self.model = AutoModel.from_pretrained(
+  File "/data2/home/vcivale/.conda/envs/geneformer310/lib/python3.10/site-packages/transformers/models/auto/auto_factory.py", line 597, in from_pretrained
+    return model_class.from_pretrained(
+  File "/data2/home/vcivale/.conda/envs/geneformer310/lib/python3.10/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+  File "/data2/home/vcivale/.conda/envs/geneformer310/lib/python3.10/site-packages/transformers/modeling_utils.py", line 4967, in from_pretrained
+    model_init_context = cls.get_init_context(is_quantized, _is_ds_init_called)
+TypeError: FMEmbedder.__init__.<locals>._cpu_init_context() missing 2 required positional arguments: '_is_ds_init_called' and 'allow_all_kernels'

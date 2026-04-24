@@ -4,7 +4,8 @@ Foundation model embedding extraction via HuggingFace Transformers.
 Supports:
   - NTv3      (InstaDeepAI/NTv3_*)             AutoModelForMaskedLM  6-mer tokenization
   - HyenaDNA  (LongSafari/hyenadna-*-hf)       AutoModel             char-level tokenization
-  - DNABERT-2 (zhihan1996/DNABERT-2-117M)       AutoModel             BPE tokenization
+  - DNABERT-2 (zhihan1996/DNABERT-2-117M)      AutoModel             BPE tokenization
+  - Caduceus  (kuleshov-group/caduceus-*)      AutoModel             char-level tokenization (BiMamba, RC-aware)
 
 Produces mean-pooled sequence-level embeddings with disk caching in .npz (float32).
 """
@@ -18,10 +19,18 @@ from transformers import AutoTokenizer, AutoModelForMaskedLM, AutoModel
 from src.embedders.embedding_cache import get_device as _get_device
 
 # Models that use AutoModel (encoder backbone only, no LM head)
-_AUTOMODEL_PREFIXES = ("LongSafari/hyenadna", "zhihan1996/DNABERT-2")
+_AUTOMODEL_PREFIXES = (
+    "LongSafari/hyenadna",
+    "zhihan1996/DNABERT-2",
+    "kuleshov-group/caduceus",
+)
 
 # Models that need char-level tokenization (no padding to multiple-of-128)
-_CHAR_LEVEL_PREFIXES = ("LongSafari/hyenadna", "zhihan1996/DNABERT-2")
+_CHAR_LEVEL_PREFIXES = (
+    "LongSafari/hyenadna",
+    "zhihan1996/DNABERT-2",
+    "kuleshov-group/caduceus",
+)
 
 
 def _is_automodel(model_name: str) -> bool:
@@ -33,7 +42,7 @@ def _is_char_level(model_name: str) -> bool:
 
 
 class FMEmbedder:
-    """Extract and cache mean-pooled embeddings from a pre-trained FM."""
+    """Extract and cache pooled embeddings from a pre-trained FM."""
 
     # DNABERT-2 ALiBi matrix grows as O(heads * seqlen^2); cap at 4096 tokens
     _MAX_LENGTH: dict[str, int] = {
@@ -45,19 +54,30 @@ class FMEmbedder:
         self,
         model_name: str = "InstaDeepAI/NTv3_650M_pre",
         cache_dir: str = "cache/fm_embeddings",
+        pooling: str = "mean",
     ):
         self.model_name = model_name
         self.cache_dir = cache_dir
+        self.pooling = pooling
         self.device = _get_device()
         self._char_level = _is_char_level(model_name)
         self.max_length = self._MAX_LENGTH.get(model_name, self._MAX_LENGTH_FALLBACK)
+
+        if self.pooling not in {"mean", "max", "cls"}:
+            raise ValueError("pooling must be one of: mean, max, cls")
+        if self.pooling == "cls" and self._char_level:
+            raise ValueError(
+                "CLS pooling is not supported for char-level models (HyenaDNA/DNABERT-2 char mode)."
+            )
 
         print(f"Loading model {model_name} on {self.device} ...")
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True
         )
-        # bfloat16 on CUDA (NTv3 internally only autocasts to bfloat16); fp32 on CPU/MPS
-        load_dtype = torch.bfloat16 if self.device.type == "cuda" else torch.float32
+        # bfloat16 on CUDA (NTv3 internally only autocasts to bfloat16); fp32 on CPU/MPS.
+        # DNABERT-2 custom attention layers mix dtypes under bfloat16 → force fp32.
+        _force_fp32 = _is_automodel(model_name) and "DNABERT" in model_name
+        load_dtype = torch.float32 if (_force_fp32 or self.device.type != "cuda") else torch.bfloat16
 
         if _is_automodel(model_name):
             # DNABERT-2: BertConfig in older checkpoints lacks pad_token_id;
@@ -78,21 +98,27 @@ class FMEmbedder:
                 cfg.attention_probs_dropout_prob = 1e-8  # negligible but non-zero
 
             from transformers import PreTrainedModel
-            _orig_get_init_context = PreTrainedModel.get_init_context
+            # get_init_context exists only in transformers >= 5.x (wraps __init__ in
+            # meta-device context). Monkey-patch only when present; older transformers
+            # don't do the meta-device wrapping so the fix isn't needed.
+            _has_init_ctx = hasattr(PreTrainedModel, "get_init_context")
+            if _has_init_ctx:
+                _orig_get_init_context = PreTrainedModel.get_init_context
 
-            @classmethod
-            def _cpu_init_context(cls_, dtype, is_quantized, _is_ds_init_called, allow_all_kernels):
-                ctxs = _orig_get_init_context.__func__(cls_, dtype, is_quantized, _is_ds_init_called, allow_all_kernels)
-                return [torch.device("cpu") if isinstance(c, torch.device) and c.type == "meta" else c for c in ctxs]
+                @classmethod
+                def _cpu_init_context(cls_, *args, **kwargs):
+                    ctxs = _orig_get_init_context.__func__(cls_, *args, **kwargs)
+                    return [torch.device("cpu") if isinstance(c, torch.device) and c.type == "meta" else c for c in ctxs]
 
-            PreTrainedModel.get_init_context = _cpu_init_context
+                PreTrainedModel.get_init_context = _cpu_init_context
             try:
                 self.model = AutoModel.from_pretrained(
                     model_name, config=cfg, trust_remote_code=True,
                     use_safetensors=True, torch_dtype=load_dtype,
                 )
             finally:
-                PreTrainedModel.get_init_context = _orig_get_init_context
+                if _has_init_ctx:
+                    PreTrainedModel.get_init_context = _orig_get_init_context
         else:
             from transformers import AutoConfig
             cfg = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
@@ -105,7 +131,7 @@ class FMEmbedder:
             )
         self.model.eval()
         self.model.to(self.device)
-        if self.device.type == "cuda":
+        if self.device.type == "cuda" and not _force_fp32:
             self.model.bfloat16()
         print("Model ready.")
 
@@ -113,16 +139,23 @@ class FMEmbedder:
     def _cache_path(self, dataset_name: str, split: str) -> str:
         safe_model = self.model_name.replace("/", "__")
         safe_ds = dataset_name.replace("/", "__").replace("\\", "__")
-        return os.path.join(self.cache_dir, safe_model, safe_ds, f"{split}.npz")
+        return os.path.join(
+            self.cache_dir,
+            safe_model,
+            f"pooling_{self.pooling}",
+            safe_ds,
+            f"{split}.npz",
+        )
 
     # ------------------------------------------------------------------
-    def _tokenize(self, batch_seqs: list[str]) -> torch.Tensor:
-        """Tokenize a batch of sequences and return input_ids on CPU."""
+    def _tokenize(self, batch_seqs: list[str]) -> dict[str, torch.Tensor]:
+        """Tokenize a batch of sequences and return tokenizer tensors on CPU."""
+        add_special_tokens = self.pooling == "cls"
         if self._char_level:
             # HyenaDNA: char-level, no padding to multiple-of-128
             tokens = self.tokenizer(
                 batch_seqs,
-                add_special_tokens=False,
+                add_special_tokens=add_special_tokens,
                 padding=True,
                 truncation=True,
                 max_length=self.max_length,
@@ -132,22 +165,25 @@ class FMEmbedder:
             # NTv3: 6-mer tokenization, pad to multiple of 128
             tokens = self.tokenizer(
                 batch_seqs,
-                add_special_tokens=False,
+                add_special_tokens=add_special_tokens,
                 padding=True,
                 truncation=True,
                 max_length=self.max_length,
                 pad_to_multiple_of=128,
                 return_tensors="pt",
             )
-        return tokens["input_ids"]
+        return tokens
 
     # ------------------------------------------------------------------
-    def _forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+    def _forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         """Forward pass, returns last hidden state (B, L, D)."""
         input_ids = input_ids.to(self.device)
+        if attention_mask is not None:
+            attention_mask = attention_mask.to(self.device)
         with torch.no_grad():
             if _is_automodel(self.model_name):
-                out = self.model(input_ids)
+                kwargs = {"attention_mask": attention_mask} if attention_mask is not None else {}
+                out = self.model(input_ids, **kwargs)
                 # DNABERT-2 returns a tuple; HyenaDNA returns an object with last_hidden_state
                 if isinstance(out, (tuple, list)):
                     hidden = out[0]
@@ -155,7 +191,8 @@ class FMEmbedder:
                     hidden = out.last_hidden_state
             else:
                 # NTv3: hidden_states[-1] is the last transformer layer output
-                out = self.model(input_ids, output_hidden_states=True)
+                kwargs = {"attention_mask": attention_mask} if attention_mask is not None else {}
+                out = self.model(input_ids, output_hidden_states=True, **kwargs)
                 hidden = out.hidden_states[-1]
         return hidden
 
@@ -168,7 +205,7 @@ class FMEmbedder:
         batch_size: int = 32,
     ) -> np.ndarray:
         """
-        Return (N, embed_dim) float32 array of mean-pooled embeddings.
+        Return (N, embed_dim) float32 array of pooled embeddings.
 
         Results are cached to disk as compressed .npz (float32).
         Cache path includes model name to avoid collisions between FMs.
@@ -190,14 +227,32 @@ class FMEmbedder:
             desc=f"FM [{dataset_name}/{split}]",
         ):
             batch_seqs = sequences[start : start + batch_size].tolist()
-            input_ids = self._tokenize(batch_seqs)
+            tokens = self._tokenize(batch_seqs)
+            input_ids = tokens["input_ids"]
+            attn_mask = tokens.get("attention_mask")
 
-            hidden = self._forward(input_ids)  # (B, L, D)
+            hidden = self._forward(input_ids, attention_mask=attn_mask)  # (B, L, D)
 
-            # Mean-pool over non-padding tokens
             input_ids_dev = input_ids.to(self.device)
-            mask = (input_ids_dev != pad_id).unsqueeze(-1).to(hidden.dtype)  # (B, L, 1)
-            pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)  # (B, D)
+            if attn_mask is not None:
+                mask = attn_mask.to(self.device).unsqueeze(-1).to(hidden.dtype)
+            elif pad_id is not None:
+                mask = (input_ids_dev != pad_id).unsqueeze(-1).to(hidden.dtype)
+            else:
+                mask = torch.ones_like(hidden[:, :, :1], dtype=hidden.dtype)
+
+            if self.pooling == "mean":
+                pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
+            elif self.pooling == "max":
+                neg_inf = torch.finfo(hidden.dtype).min
+                masked_hidden = hidden.masked_fill(mask == 0, neg_inf)
+                pooled = masked_hidden.max(dim=1).values
+                empty_rows = (mask.sum(dim=1).squeeze(-1) == 0)
+                if empty_rows.any():
+                    pooled[empty_rows] = 0
+            else:  # cls
+                pooled = hidden[:, 0, :]
+
             all_embs.append(pooled.cpu().float().numpy())
 
         embeddings = np.concatenate(all_embs, axis=0).astype(np.float16)

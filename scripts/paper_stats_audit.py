@@ -14,9 +14,9 @@ import pandas as pd
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REC  = os.path.join(ROOT, "results/classification/records.csv")
+REC  = os.path.join(ROOT, "results/classification/records_rf.csv")
 BEST = os.path.join(ROOT, "results/classification/records_best_k_analysis.csv")
-DEC  = os.path.join(ROOT, "results/classification/records_decomposition.csv")
+DEC  = os.path.join(ROOT, "results/decomposition/records_decomposition.csv")
 TRUNC = os.path.join(ROOT, "results/classification/truncation_analysis.csv")
 
 # ── Load ───────────────────────────────────────────────────────────────────

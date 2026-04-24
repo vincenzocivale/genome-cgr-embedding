@@ -25,12 +25,12 @@ _RF_PARAM_GRID = {
 }
 
 
-def train_rf(X_train, y_train, n_classes):
+def train_rf(X_train, y_train, n_classes, random_state=42, n_jobs=4):
     """Train a Random Forest classifier with GridSearchCV."""
     scoring = "roc_auc" if n_classes == 2 else "accuracy"
-    cv = StratifiedKFold(n_splits=4, shuffle=True, random_state=42)
+    cv = StratifiedKFold(n_splits=4, shuffle=True, random_state=random_state)
     gs = GridSearchCV(
-        RandomForestClassifier(n_jobs=4, random_state=42),
+        RandomForestClassifier(n_jobs=n_jobs, random_state=random_state),
         _RF_PARAM_GRID, scoring=scoring, cv=cv, n_jobs=1, refit=True,
     )
     gs.fit(X_train, y_train)

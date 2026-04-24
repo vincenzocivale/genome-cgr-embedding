@@ -22,10 +22,15 @@ class HyenaEmbedder:
         self,
         model_name: str = "LongSafari/hyenadna-medium-160k-seqlen-hf",
         cache_dir: str = "cache/hyena_embeddings",
+        pooling: str = "mean",
     ):
         self.model_name = model_name
         self.cache_dir = cache_dir
+        self.pooling = pooling
         self.device = _get_device()
+
+        if self.pooling not in {"mean", "max"}:
+            raise ValueError("HyenaEmbedder supports only pooling in {'mean', 'max'}")
 
         print(f"Loading HyenaDNA {model_name} on {self.device} ...")
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -41,7 +46,7 @@ class HyenaEmbedder:
     # ------------------------------------------------------------------
     def _cache_path(self, dataset_name: str, split: str) -> str:
         safe = dataset_name.replace("/", "__").replace("\\", "__")
-        return os.path.join(self.cache_dir, safe, f"{split}.npz")
+        return os.path.join(self.cache_dir, f"pooling_{self.pooling}", safe, f"{split}.npz")
 
     # ------------------------------------------------------------------
     def embed_sequences(
@@ -52,7 +57,7 @@ class HyenaEmbedder:
         batch_size: int = 8,
     ) -> np.ndarray:
         """
-        Return (N, embed_dim) float32 array of mean-pooled embeddings.
+        Return (N, embed_dim) float32 array of pooled embeddings.
 
         HyenaDNA usa single-char tokenization (A,C,G,T).
         Output: hidden state medio su tutti i token non-padding.
@@ -96,7 +101,15 @@ class HyenaEmbedder:
             # HyenaDNA tokenizer does not return attention_mask; build it from pad_token_id
             pad_id = self.tokenizer.pad_token_id
             mask = (tokens["input_ids"] != pad_id).unsqueeze(-1).float()  # (B, L, 1)
-            pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)  # (B, D)
+            if self.pooling == "mean":
+                pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)  # (B, D)
+            else:
+                neg_inf = torch.finfo(hidden.dtype).min
+                masked_hidden = hidden.masked_fill(mask == 0, neg_inf)
+                pooled = masked_hidden.max(dim=1).values
+                empty_rows = (mask.sum(dim=1).squeeze(-1) == 0)
+                if empty_rows.any():
+                    pooled[empty_rows] = 0
             all_embs.append(pooled.cpu().float().numpy())
 
         embeddings = np.concatenate(all_embs, axis=0).astype(np.float16)
