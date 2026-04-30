@@ -13,6 +13,7 @@ model_tag = last component of the HuggingFace model ID (e.g. NTv3_650M_pre)
 """
 from __future__ import annotations
 
+import fcntl
 import os
 import pandas as pd
 
@@ -517,10 +518,17 @@ def write_decomp_ridge(dataset: str, k: int, model_name: str,
                        mapper: str = "ridge",
                        path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
     """ridge_metrics keys: R2"""
-    df = _ensure_row(load_decomp_records(path), dataset)
-    for m in DECOMP_RIDGE_METRICS:
-        df.loc[dataset, decomp_ridge_col(k, model_name, m, pooling, mapper)] = ridge_metrics[m]
-    _save(df, path)
+    lock_path = f"{path}.lock"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(lock_path, "a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            df = _ensure_row(load_decomp_records(path), dataset)
+            for m in DECOMP_RIDGE_METRICS:
+                df.loc[dataset, decomp_ridge_col(k, model_name, m, pooling, mapper)] = ridge_metrics[m]
+            _save(df, path)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
     return df
 
 
@@ -529,10 +537,17 @@ def write_proj(dataset: str, k: int, model_name: str, rf_metrics: dict,
                mapper: str = "ridge",
                path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
     """rf_metrics keys: MCC, AUROC"""
-    df = _ensure_row(load_decomp_records(path), dataset)
-    for m in DECOMP_RF_METRICS:
-        df.loc[dataset, decomp_proj_col(k, model_name, m, pooling, mapper)] = rf_metrics[m]
-    _save(df, path)
+    lock_path = f"{path}.lock"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(lock_path, "a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            df = _ensure_row(load_decomp_records(path), dataset)
+            for m in DECOMP_RF_METRICS:
+                df.loc[dataset, decomp_proj_col(k, model_name, m, pooling, mapper)] = rf_metrics[m]
+            _save(df, path)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
     return df
 
 
@@ -541,10 +556,17 @@ def write_resid(dataset: str, k: int, model_name: str, rf_metrics: dict,
                 mapper: str = "ridge",
                 path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
     """rf_metrics keys: MCC, AUROC"""
-    df = _ensure_row(load_decomp_records(path), dataset)
-    for m in DECOMP_RF_METRICS:
-        df.loc[dataset, decomp_resid_col(k, model_name, m, pooling, mapper)] = rf_metrics[m]
-    _save(df, path)
+    lock_path = f"{path}.lock"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(lock_path, "a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            df = _ensure_row(load_decomp_records(path), dataset)
+            for m in DECOMP_RF_METRICS:
+                df.loc[dataset, decomp_resid_col(k, model_name, m, pooling, mapper)] = rf_metrics[m]
+            _save(df, path)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
     return df
 
 

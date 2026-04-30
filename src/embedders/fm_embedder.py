@@ -10,6 +10,7 @@ Supports:
 Produces mean-pooled sequence-level embeddings with disk caching in .npz (float32).
 """
 
+import gc
 import os
 import numpy as np
 import torch
@@ -222,38 +223,65 @@ class FMEmbedder:
         all_embs: list[np.ndarray] = []
         pad_id = self.tokenizer.pad_token_id
 
-        for start in tqdm(
-            range(0, len(sequences), batch_size),
-            desc=f"FM [{dataset_name}/{split}]",
-        ):
-            batch_seqs = sequences[start : start + batch_size].tolist()
-            tokens = self._tokenize(batch_seqs)
-            input_ids = tokens["input_ids"]
-            attn_mask = tokens.get("attention_mask")
+        start = 0
+        current_batch_size = max(1, batch_size)
+        progress = tqdm(total=len(sequences), desc=f"FM [{dataset_name}/{split}]")
 
-            hidden = self._forward(input_ids, attention_mask=attn_mask)  # (B, L, D)
+        while start < len(sequences):
+            end = min(start + current_batch_size, len(sequences))
+            batch_seqs = sequences[start:end].tolist()
 
-            input_ids_dev = input_ids.to(self.device)
-            if attn_mask is not None:
-                mask = attn_mask.to(self.device).unsqueeze(-1).to(hidden.dtype)
-            elif pad_id is not None:
-                mask = (input_ids_dev != pad_id).unsqueeze(-1).to(hidden.dtype)
-            else:
-                mask = torch.ones_like(hidden[:, :, :1], dtype=hidden.dtype)
+            try:
+                tokens = self._tokenize(batch_seqs)
+                input_ids = tokens["input_ids"]
+                attn_mask = tokens.get("attention_mask")
 
-            if self.pooling == "mean":
-                pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
-            elif self.pooling == "max":
-                neg_inf = torch.finfo(hidden.dtype).min
-                masked_hidden = hidden.masked_fill(mask == 0, neg_inf)
-                pooled = masked_hidden.max(dim=1).values
-                empty_rows = (mask.sum(dim=1).squeeze(-1) == 0)
-                if empty_rows.any():
-                    pooled[empty_rows] = 0
-            else:  # cls
-                pooled = hidden[:, 0, :]
+                hidden = self._forward(input_ids, attention_mask=attn_mask)  # (B, L, D)
 
-            all_embs.append(pooled.cpu().float().numpy())
+                input_ids_dev = input_ids.to(self.device)
+                if attn_mask is not None:
+                    mask = attn_mask.to(self.device).unsqueeze(-1).to(hidden.dtype)
+                elif pad_id is not None:
+                    mask = (input_ids_dev != pad_id).unsqueeze(-1).to(hidden.dtype)
+                else:
+                    mask = torch.ones_like(hidden[:, :, :1], dtype=hidden.dtype)
+
+                if self.pooling == "mean":
+                    pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
+                elif self.pooling == "max":
+                    neg_inf = torch.finfo(hidden.dtype).min
+                    masked_hidden = hidden.masked_fill(mask == 0, neg_inf)
+                    pooled = masked_hidden.max(dim=1).values
+                    empty_rows = (mask.sum(dim=1).squeeze(-1) == 0)
+                    if empty_rows.any():
+                        pooled[empty_rows] = 0
+                else:  # cls
+                    pooled = hidden[:, 0, :]
+
+                all_embs.append(pooled.cpu().float().numpy())
+                progress.update(len(batch_seqs))
+                start = end
+
+            except (torch.OutOfMemoryError, RuntimeError) as exc:
+                message = str(exc).lower()
+                is_oom = "out of memory" in message or "cuda out of memory" in message
+                if not is_oom or self.device.type != "cuda" or current_batch_size == 1:
+                    raise
+
+                gc.collect()
+                torch.cuda.empty_cache()
+
+                next_batch_size = max(1, current_batch_size // 2)
+                if next_batch_size == current_batch_size:
+                    raise
+
+                print(
+                    f"  [warn] CUDA OOM at batch_size={current_batch_size}; "
+                    f"retrying with batch_size={next_batch_size}"
+                )
+                current_batch_size = next_batch_size
+
+        progress.close()
 
         embeddings = np.concatenate(all_embs, axis=0).astype(np.float16)
 
