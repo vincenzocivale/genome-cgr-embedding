@@ -32,7 +32,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train RF su wavelet/spatial pyramid CGR per tutti i dataset"
     )
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     parser.add_argument("--levels", nargs="+", type=int, default=[1, 2, 3])
     parser.add_argument("--grid-size", type=int, default=128)
     parser.add_argument("--n-workers", type=int, default=8)

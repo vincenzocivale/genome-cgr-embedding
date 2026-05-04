@@ -5,9 +5,9 @@ Computes FCGR once per dataset, pools to canonical k-mer frequencies, and
 trains either RF or linear probe depending on --classifier.
 
 Usage:
-    python3 src/scripts/train_canonical_kmer.py --k-values 4 5 6 --classifier rf
-    python3 src/scripts/train_canonical_kmer.py --k-values 4 5 6 --classifier linear
-    python3 src/scripts/train_canonical_kmer.py --k-values 4 5 6 --classifier rf --n-parallel 16
+    python3 src/scripts/classification/train_canonical_kmer.py --k-values 4 5 6 --classifier rf
+    python3 src/scripts/classification/train_canonical_kmer.py --k-values 4 5 6 --classifier linear
+    python3 src/scripts/classification/train_canonical_kmer.py --k-values 4 5 6 --classifier rf --n-parallel 16
 """
 
 import argparse

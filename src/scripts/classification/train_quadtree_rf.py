@@ -43,7 +43,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train RF su Adaptive QuadTree CGR per tutti i dataset"
     )
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     parser.add_argument("--max-depths", nargs="+", type=int, default=[6, 7, 8])
     parser.add_argument("--p-thresholds", nargs="+", type=float, default=[0.01, 0.05, 0.1])
     parser.add_argument("--min-counts", nargs="+", type=int, default=[0, 4, 8])

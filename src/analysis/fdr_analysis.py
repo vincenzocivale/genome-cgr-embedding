@@ -4,11 +4,11 @@ FDR (Benjamini-Hochberg) correction on kmer vs FM pairwise comparisons.
 For each FM model, performs a Wilcoxon signed-rank test comparing best k-mer MCC
 to FM MCC across all 57 classification datasets, then applies BH correction.
 
-Runs on both records.csv (RF) and records_linear_probe.csv (linear probe).
+Runs on both `records_rf.csv` (RF) and `records_linear_probe.csv` (linear probe).
 
 Usage:
     python3 src/analysis/fdr_analysis.py
-    python3 src/analysis/fdr_analysis.py --records results/classification/records.csv
+    python3 src/analysis/fdr_analysis.py --records results/classification/records_rf.csv
     python3 src/analysis/fdr_analysis.py --records results/classification/records_linear_probe.csv
 """
 
@@ -170,7 +170,7 @@ def main():
         "--records",
         nargs="+",
         default=[
-            "results/classification/records.csv",
+            "results/classification/records_rf.csv",
             "results/classification/records_linear_probe.csv",
         ],
     )

@@ -5,9 +5,9 @@ PCA is fit on train only (no data leakage), then applied to test.
 Number of components is chosen to retain 95% of the explained variance.
 
 Usage:
-    python3 src/scripts/train_pca_rf.py --mode kmer --k-values 4 5 6
-    python3 src/scripts/train_pca_rf.py --mode fm --model InstaDeepAI/NTv3_650M_pre
-    python3 src/scripts/train_pca_rf.py --mode fm --model LongSafari/hyenadna-medium-160k-seqlen-hf
+    python3 src/scripts/classification/train_pca_rf.py --mode kmer --k-values 4 5 6
+    python3 src/scripts/classification/train_pca_rf.py --mode fm --model InstaDeepAI/NTv3_650M_pre
+    python3 src/scripts/classification/train_pca_rf.py --mode fm --model LongSafari/hyenadna-medium-160k-seqlen-hf
 """
 
 import argparse
@@ -25,9 +25,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from src.data.loader import discover_datasets, load_dataset
 from src.features.kmer_features import kmer_from_grids
 from src.core.fcgr import batch_fcgr
-from src.embedders.fm_embedder import FMEmbedder
+from src.embedders.fm_embedder import FMEmbedder, validate_supported_model
 from src.embedders.hyena_embedder import HyenaEmbedder
-from src.embedders.evo2_embedder import Evo2Embedder
 from src.records.records import (
     load_pca_records, RECORDS_PCA_CSV,
     has_pca_kmer, write_pca_kmer,
@@ -129,15 +128,9 @@ def run_fm(args):
     print(f"Variance : {VARIANCE_THRESHOLD}")
     print(f"Results  : {RECORDS_PCA_CSV}\n")
 
+    validate_supported_model(args.model)
     model_lc = args.model.lower()
-    if model_lc.startswith("evo2"):
-        fm = Evo2Embedder(
-            model_name=args.model,
-            cache_dir="cache/fm_embeddings",
-            layer_name=args.evo2_layer,
-            max_length=args.evo2_max_length,
-        )
-    elif "hyenadna" in model_lc:
+    if "hyenadna" in model_lc:
         fm = HyenaEmbedder(model_name=args.model, cache_dir="cache/hyena_embeddings")
     else:
         fm = FMEmbedder(model_name=args.model, cache_dir="cache/fm_embeddings")
@@ -182,7 +175,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="PCA + RF on k-mer or FM features"
     )
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     parser.add_argument("--mode", choices=["kmer", "fm"], required=True,
                        help="Feature type: kmer or fm")
     parser.add_argument("--k-values", nargs="+", type=int, default=[4, 5, 6],
@@ -190,10 +183,6 @@ def main():
     parser.add_argument("--model", type=str, default=None,
                        help="FM model (fm mode only)")
     parser.add_argument("--fm-batch-size", type=int, default=32)
-    parser.add_argument("--evo2-layer", type=str, default=None,
-                       help="Evo2 layer name for embeddings (optional).")
-    parser.add_argument("--evo2-max-length", type=int, default=None,
-                       help="Optional max length (bp) for Evo2 tokenization.")
     parser.add_argument("--n-workers", type=int, default=8)
     args = parser.parse_args()
 

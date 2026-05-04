@@ -9,7 +9,7 @@ Reports concordance rate and lists discordant datasets.
 
 Usage:
     python3 src/analysis/auroc_consistency.py
-    python3 src/analysis/auroc_consistency.py --records results/classification/records.csv
+    python3 src/analysis/auroc_consistency.py --records results/classification/records_rf.csv
     python3 src/analysis/auroc_consistency.py --also-linear
 """
 
@@ -136,7 +136,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="AUROC consistency: do MCC and AUROC verdicts agree?"
     )
-    parser.add_argument("--records", default="results/classification/records.csv")
+    parser.add_argument("--records", default="results/classification/records_rf.csv")
     parser.add_argument("--also-linear", action="store_true",
                         help="Also analyze records_linear_probe.csv")
     parser.add_argument("--output", default=AUROC_CSV)

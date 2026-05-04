@@ -5,7 +5,7 @@ GFLOPs depend only on sequence length, not on the specific dataset or task.
 This script measures on random synthetic DNA sequences at fixed lengths,
 producing a clean length-vs-cost profile suitable for plotting.
 
-Output: results/efficiency/efficiency.csv
+Output: results/efficiency/efficiency_gpu_parallel.csv
         One row per (method, seq_len).
 
 Usage:
@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 # Constants
 # ---------------------------------------------------------------------------
 
-OUTPUT_CSV = "results/efficiency/efficiency.csv"
+OUTPUT_CSV = "results/efficiency/efficiency_gpu_parallel.csv"
 OUTPUT_COLS = [
     "method", "seq_len", "n_seqs", "params_M",
     "duration_sec", "GFLOPS_per_seq", "GFLOPS_total", "GFLOPS_theory_per_seq",
@@ -44,7 +44,6 @@ FM_METHODS: dict[str, str] = {
     "fm_NTv3_650M_pre":                   "InstaDeepAI/NTv3_650M_pre",
     "fm_hyenadna-medium-160k-seqlen-hf":  "LongSafari/hyenadna-medium-160k-seqlen-hf",
     "fm_DNABERT-2-117M":                  "zhihan1996/DNABERT-2-117M",
-    "fm_caduceus-ph":                     "kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16",
 }
 
 KMER_METHODS = ["kmer_k6"]

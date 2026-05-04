@@ -1,13 +1,13 @@
 """
 Foundation model embedding extraction via HuggingFace Transformers.
 
-Supports:
-  - NTv3      (InstaDeepAI/NTv3_*)             AutoModelForMaskedLM  6-mer tokenization
-  - HyenaDNA  (LongSafari/hyenadna-*-hf)       AutoModel             char-level tokenization
-  - DNABERT-2 (zhihan1996/DNABERT-2-117M)      AutoModel             BPE tokenization
-  - Caduceus  (kuleshov-group/caduceus-*)      AutoModel             char-level tokenization (BiMamba, RC-aware)
+Supported public models:
+  - NTv3      (`InstaDeepAI/NTv3_650M_pre`)
+  - HyenaDNA  (`LongSafari/hyenadna-medium-160k-seqlen-hf`)
+  - DNABERT-2 (`zhihan1996/DNABERT-2-117M`)
+  - Caduceus-Ph (`kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16`)
 
-Produces mean-pooled sequence-level embeddings with disk caching in .npz (float32).
+Produces pooled sequence-level embeddings with disk caching in `.npz`.
 """
 
 import gc
@@ -18,6 +18,13 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForMaskedLM, AutoModel
 
 from src.embedders.embedding_cache import get_device as _get_device
+
+SUPPORTED_FM_MODELS = (
+    "InstaDeepAI/NTv3_650M_pre",
+    "LongSafari/hyenadna-medium-160k-seqlen-hf",
+    "zhihan1996/DNABERT-2-117M",
+    "kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16",
+)
 
 # Models that use AutoModel (encoder backbone only, no LM head)
 _AUTOMODEL_PREFIXES = (
@@ -42,6 +49,16 @@ def _is_char_level(model_name: str) -> bool:
     return any(model_name.startswith(p) for p in _CHAR_LEVEL_PREFIXES)
 
 
+def validate_supported_model(model_name: str) -> None:
+    if model_name in SUPPORTED_FM_MODELS:
+        return
+    # Also accept any model whose prefix is in the AutoModel list (e.g. new Caduceus variants)
+    if _is_automodel(model_name):
+        return
+    supported = ", ".join(SUPPORTED_FM_MODELS)
+    raise ValueError(f"Unsupported model '{model_name}'. Supported models: {supported}")
+
+
 class FMEmbedder:
     """Extract and cache pooled embeddings from a pre-trained FM."""
 
@@ -57,6 +74,7 @@ class FMEmbedder:
         cache_dir: str = "cache/fm_embeddings",
         pooling: str = "mean",
     ):
+        validate_supported_model(model_name)
         self.model_name = model_name
         self.cache_dir = cache_dir
         self.pooling = pooling
@@ -112,6 +130,34 @@ class FMEmbedder:
                     return [torch.device("cpu") if isinstance(c, torch.device) and c.type == "meta" else c for c in ctxs]
 
                 PreTrainedModel.get_init_context = _cpu_init_context
+            # Caduceus was written against transformers 4.x; transformers 5.x added
+            # two incompatible calls in _finalize_model_loading:
+            #   1. model.all_tied_weights_keys  (Caduceus only has _tied_weights_keys)
+            #   2. model.tie_weights(missing_keys=...) (Caduceus.tie_weights takes no kwargs)
+            # Patch _finalize_model_loading to tolerate these for Caduceus models.
+            _is_caduceus = model_name.startswith("kuleshov-group/caduceus")
+            _orig_finalize = None
+            if _is_caduceus:
+                import transformers.modeling_utils as _mu
+                _orig_finalize = _mu.PreTrainedModel._finalize_model_loading
+
+                def _caduceus_finalize(model_, load_config_, loading_info_):
+                    # Add all_tied_weights_keys shim if missing (transformers 5.x compat)
+                    if not hasattr(model_, "all_tied_weights_keys"):
+                        model_.all_tied_weights_keys = getattr(model_, "_tied_weights_keys", {}) or {}
+                    # Wrap tie_weights on the instance to swallow unexpected kwargs
+                    _real_tw = model_.tie_weights
+                    def _safe_tw(**kw):
+                        kw.pop("missing_keys", None)
+                        kw.pop("recompute_mapping", None)
+                        return _real_tw(**kw)
+                    model_.tie_weights = _safe_tw
+                    try:
+                        return _orig_finalize(model_, load_config_, loading_info_)
+                    finally:
+                        model_.tie_weights = _real_tw
+
+                _mu.PreTrainedModel._finalize_model_loading = staticmethod(_caduceus_finalize)
             try:
                 self.model = AutoModel.from_pretrained(
                     model_name, config=cfg, trust_remote_code=True,
@@ -120,6 +166,9 @@ class FMEmbedder:
             finally:
                 if _has_init_ctx:
                     PreTrainedModel.get_init_context = _orig_get_init_context
+                if _is_caduceus and _orig_finalize is not None:
+                    import transformers.modeling_utils as _mu
+                    _mu.PreTrainedModel._finalize_model_loading = _orig_finalize
         else:
             from transformers import AutoConfig
             cfg = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
@@ -185,7 +234,7 @@ class FMEmbedder:
             if _is_automodel(self.model_name):
                 kwargs = {"attention_mask": attention_mask} if attention_mask is not None else {}
                 out = self.model(input_ids, **kwargs)
-                # DNABERT-2 returns a tuple; HyenaDNA returns an object with last_hidden_state
+                # DNABERT-2 returns a tuple; HyenaDNA/Caduceus return an object with last_hidden_state
                 if isinstance(out, (tuple, list)):
                     hidden = out[0]
                 else:

@@ -5,17 +5,14 @@ All classification training scripts use the same RF configuration and
 evaluation protocol. This module centralises those definitions.
 """
 
-import numpy as np
-from scipy.stats import spearmanr
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
     matthews_corrcoef,
-    r2_score,
     roc_auc_score,
 )
-from sklearn.model_selection import GridSearchCV, KFold, StratifiedKFold
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
 
 _RF_PARAM_GRID = {
     "n_estimators":      [200, 500],
@@ -60,28 +57,3 @@ def eval_rf(model, X_test, y_test, n_classes):
             y_test, model.predict_proba(X_test), multi_class="ovr", average="macro"
         )
     return {"MCC": mcc, "AUROC": auroc, "F1": f1, "Accuracy": acc}
-
-
-def train_rf_regressor(X_train, y_train):
-    """Train a Random Forest regressor with GridSearchCV."""
-    cv = KFold(n_splits=4, shuffle=True, random_state=42)
-    gs = GridSearchCV(
-        RandomForestRegressor(n_jobs=4, random_state=42),
-        _RF_PARAM_GRID, scoring="r2", cv=cv, n_jobs=1, refit=True,
-    )
-    gs.fit(X_train, y_train)
-    return gs
-
-
-def eval_rf_regressor(model, X_test, y_test):
-    """Evaluate a regressor on the test set. Returns R2, MSE, Spearman."""
-    y_pred = model.predict(X_test)
-    r2 = r2_score(y_test, y_pred)
-    mse = float(np.mean((y_test - y_pred) ** 2))
-    spearman = float(spearmanr(y_test, y_pred).statistic)
-    return {"R2": r2, "MSE": mse, "Spearman": spearman}
-
-
-# Aliases used by train_lra_benchmark.py
-train_rf_classifier = train_rf
-eval_rf_classifier = eval_rf

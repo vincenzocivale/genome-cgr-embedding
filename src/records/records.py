@@ -1,15 +1,7 @@
 """
-Results store: wide-format CSV with one row per dataset and dynamic columns.
+Helpers for the repository's canonical wide-format result CSVs.
 
-Column schema:
-  - dataset                         (row key)
-  - kmer_k{K}_{metric}              RF results for k-mer features at size K
-  - fm_{model_tag}_{metric}         RF results for FM embeddings
-  - ridge_k{K}_fm_{model_tag}_{m}   Ridge regression metrics
-RF metrics  : MCC, AUROC, F1, Accuracy
-Ridge metrics: R2, MSE
-
-model_tag = last component of the HuggingFace model ID (e.g. NTv3_650M_pre)
+Each table uses one row per dataset and dynamic metric columns.
 """
 from __future__ import annotations
 
@@ -36,8 +28,6 @@ DATASET_INFO_COLS = [
 # ── helpers ────────────────────────────────────────────────────────────────
 
 def _model_tag(model_name: str) -> str:
-    if model_name.startswith("kuleshov-group/caduceus-ph"):
-        return "caduceus-ph"
     return model_name.split("/")[-1]
 
 
@@ -134,6 +124,41 @@ def wms_col(k_values: tuple[int, ...], weighting: str, metric: str) -> str:
 def wms_weights_col(k_values: tuple[int, ...], weighting: str) -> str:
     tag = "_".join(str(k) for k in sorted(k_values))
     return f"wms_k{tag}_{weighting}_weights"
+
+
+def best_kmer_cols(
+    df: pd.DataFrame,
+    metric: str = "MCC",
+    prefix: str = "kmer",
+    include_multiscale: bool = False,
+) -> list[str]:
+    cols = [c for c in df.columns if c.startswith(f"{prefix}_k") and c.endswith(f"_{metric}")]
+    if include_multiscale:
+        cols.extend(
+            c for c in df.columns if c.startswith(f"{prefix}_multi_k") and c.endswith(f"_{metric}")
+        )
+    return cols
+
+
+def best_kmer_metric(
+    df: pd.DataFrame,
+    metric: str = "MCC",
+    prefix: str = "kmer",
+    include_multiscale: bool = False,
+) -> pd.Series:
+    cols = best_kmer_cols(df, metric=metric, prefix=prefix, include_multiscale=include_multiscale)
+    if not cols:
+        return pd.Series(dtype=float)
+    return df[cols].apply(pd.to_numeric, errors="coerce").max(axis=1)
+
+
+def best_fixed_k(df: pd.DataFrame, metric: str = "MCC", prefix: str = "kmer") -> pd.Series:
+    cols = [c for c in df.columns if c.startswith(f"{prefix}_k") and c.endswith(f"_{metric}")]
+    if not cols:
+        return pd.Series(dtype="Int64")
+    numeric = df[cols].apply(pd.to_numeric, errors="coerce")
+    best_cols = numeric.idxmax(axis=1)
+    return best_cols.str.extract(rf"{prefix}_k(\d+)_{metric}")[0].astype("Int64")
 
 
 # ── load / save ─────────────────────────────────────────────────────────────

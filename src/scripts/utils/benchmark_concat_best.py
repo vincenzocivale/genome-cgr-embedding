@@ -1,12 +1,13 @@
 """
 Benchmark RF on concatenated features: best FM embedding + best k-mer features.
 
-Selection of "best" uses existing records.csv (per-dataset max on a metric, default MCC).
-WARNING: this selection uses test-set performance stored in records.csv;
+Selection of "best" uses existing `results/classification/records_rf.csv`
+(per-dataset max on a metric, default MCC).
+WARNING: this selection uses test-set performance stored in `records_rf.csv`;
 use with caution for unbiased comparisons.
 
 Usage:
-  python3 src/fm_experiment/benchmark_concat_best.py \
+  python3 src/scripts/utils/benchmark_concat_best.py \
     --data-root /data/genomic_bench/dna_foundation_benchmark/ \
     --metric MCC --kmer-include-multi \
     --fm-batch-size 16 --n-workers 8
@@ -23,7 +24,7 @@ from tqdm import tqdm
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from src.data.loader import discover_datasets, load_dataset
-from src.embedders.fm_embedder import FMEmbedder
+from src.embedders.fm_embedder import FMEmbedder, validate_supported_model
 from src.embedders.hyena_embedder import HyenaEmbedder
 from src.features.kmer_features import (
     extract_kmer_features,
@@ -89,7 +90,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="RF on concatenated features: best FM + best k-mer"
     )
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     parser.add_argument("--metric", default="MCC", choices=RF_METRICS)
     parser.add_argument("--kmer-include-multi", action="store_true",
                         help="Allow multiscale k-mer as candidate best")
@@ -100,9 +101,9 @@ def main():
     parser.add_argument("--out-csv", default="results/concat/records_concat_best.csv")
     args = parser.parse_args()
 
-    records = load_records(os.path.join("results", "classification", "records.csv"))
+    records = load_records(os.path.join("results", "classification", "records_rf.csv"))
     if records.empty:
-        raise RuntimeError("records.csv not found or empty")
+        raise RuntimeError("results/classification/records_rf.csv not found or empty")
 
     all_datasets = discover_datasets(args.data_root)
     if args.datasets:
@@ -142,6 +143,7 @@ def main():
         if fm_model is None:
             pbar.set_description(f"[skip] {name} (unknown FM tag {fm_tag})")
             continue
+        validate_supported_model(fm_model)
 
         # load data
         train_seqs, train_labels, test_seqs, test_labels = load_dataset(
@@ -204,7 +206,6 @@ def main():
         return
 
     os.makedirs(os.path.dirname(args.out_csv), exist_ok=True)
-    import pandas as pd
     out_df = pd.DataFrame(rows)
     out_df.to_csv(args.out_csv, index=False)
 

@@ -12,9 +12,9 @@ Processes one FM model at a time. After each dataset, deletes that dataset's
 cached embeddings to free disk (unless --no-cleanup).
 
 Usage:
-    CUDA_VISIBLE_DEVICES=3 python3 src/scripts/train_decomposition.py --model InstaDeepAI/NTv3_650M_pre
-    CUDA_VISIBLE_DEVICES=3 python3 src/scripts/train_decomposition.py --model zhihan1996/DNABERT-2-117M --k-values 6
-    CUDA_VISIBLE_DEVICES=3 python3 src/scripts/train_decomposition.py --model LongSafari/hyenadna-medium-160k-seqlen-hf --no-cleanup
+    CUDA_VISIBLE_DEVICES=3 python3 src/scripts/decomposition/train_decomposition.py --model InstaDeepAI/NTv3_650M_pre
+    CUDA_VISIBLE_DEVICES=3 python3 src/scripts/decomposition/train_decomposition.py --model zhihan1996/DNABERT-2-117M --k-values 6
+    CUDA_VISIBLE_DEVICES=3 python3 src/scripts/decomposition/train_decomposition.py --model LongSafari/hyenadna-medium-160k-seqlen-hf --no-cleanup
 """
 
 import argparse
@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from src.data.loader import discover_datasets, load_dataset
 from src.embedders.embedding_cache import load_cached_embeddings
+from src.embedders.fm_embedder import validate_supported_model
 from src.features.kmer_features import extract_kmer_features
 from src.records.records import (
     load_decomp_records,
@@ -44,10 +45,21 @@ from src.training.ridge_mapping import fit_and_evaluate
 from src.training.rf_pipeline import train_rf_fast, eval_rf
 
 
+_EVO2_MODELS = {"evo2_7b", "evo2_7b_base", "evo2_1b_base", "evo2_40b", "evo2_40b_base", "evo2_20b"}
+
+
+def _is_evo2(model_name: str) -> bool:
+    return model_name in _EVO2_MODELS or model_name.startswith("evo2_")
+
+
 def _make_embedder(model_name: str, fm_batch_size: int, pooling: str):
     """Lazily create the FM embedder (loads model onto GPU)."""
     model_lc = model_name.lower()
-    if "hyenadna" in model_lc:
+    if _is_evo2(model_name):
+        from src.embedders.evo2_embedder import Evo2Embedder
+        return Evo2Embedder(model_name=model_name,
+                            cache_dir="cache/fm_embeddings")
+    elif "hyenadna" in model_lc:
         from src.embedders.hyena_embedder import HyenaEmbedder
         return HyenaEmbedder(model_name=model_name,
                              cache_dir="cache/hyena_embeddings",
@@ -78,6 +90,15 @@ def _cache_paths_for_dataset(model_name: str, dataset_name: str,
     return paths
 
 
+def _embed_dataset_evo2(embedder, ds: dict, batch_size: int) -> tuple[np.ndarray, np.ndarray]:
+    """Load embeddings for a dataset using the Evo2Embedder interface."""
+    from src.data.loader import load_dataset
+    data = load_dataset(ds)
+    X_tr = embedder.embed_sequences(data["X_train"], ds["name"], "train", batch_size=batch_size)
+    X_te = embedder.embed_sequences(data["X_test"],  ds["name"], "test",  batch_size=batch_size)
+    return X_tr, X_te, data
+
+
 def _delete_dataset_cache(model_name: str, dataset_name: str,
                           pooling: str = "mean"):
     """Remove cached embeddings for a single dataset."""
@@ -101,7 +122,7 @@ def main():
         description="Orthogonal decomposition: proj (k-mer) vs residual RF"
     )
     parser.add_argument("--data-root",
-                        default="/data/genomic_bench/dna_foundation_benchmark/")
+                        default="data/dna_foundation_benchmark/")
     parser.add_argument("--model", required=True,
                         help="FM model name (e.g. InstaDeepAI/NTv3_650M_pre)")
     parser.add_argument("--pooling", choices=["mean", "max", "cls"], default="mean")
@@ -122,8 +143,8 @@ def main():
                         help="Process datasets in reverse order")
     args = parser.parse_args()
 
-    if args.model.lower().startswith("evo2"):
-        raise ValueError("Evo2 is explicitly excluded for this experiment plan.")
+    if not _is_evo2(args.model):
+        validate_supported_model(args.model)
     if args.pooling == "cls" and "hyenadna" in args.model.lower():
         raise ValueError("CLS pooling is not supported for HyenaDNA.")
 

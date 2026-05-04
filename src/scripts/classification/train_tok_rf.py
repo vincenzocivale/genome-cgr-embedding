@@ -5,8 +5,8 @@ Confronta la rappresentazione statica dei token (solo lookup table)
 con quella contestualizzata (output completo del FM).
 
 Usage:
-    python3 src/fm_experiment/train_tok_rf.py --model InstaDeepAI/NTv3_650M_pre
-    python3 src/fm_experiment/train_tok_rf.py --model LongSafari/hyenadna-medium-160k-seqlen-hf
+    python3 src/scripts/classification/train_tok_rf.py --model InstaDeepAI/NTv3_650M_pre
+    python3 src/scripts/classification/train_tok_rf.py --model LongSafari/hyenadna-medium-160k-seqlen-hf
 """
 
 import argparse
@@ -20,8 +20,8 @@ from tqdm import tqdm
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from src.data.loader import discover_datasets, load_dataset
+from src.embedders.fm_embedder import validate_supported_model
 from src.embedders.tokenizer_embedder import TokenizerEmbedder
-from src.embedders.evo2_embedder import Evo2TokenizerEmbedder
 from src.records.records import (
     load_records, has_tok, write_tok, RECORDS_CSV,
 )
@@ -33,13 +33,12 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train RF su embedding-layer (pre-transformer) per tutti i dataset"
     )
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     parser.add_argument("--model", required=True,
                        help="FM model HF name")
     parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--evo2-max-length", type=int, default=None,
-                        help="Optional max length (bp) for Evo2 tokenization.")
     args = parser.parse_args()
+    validate_supported_model(args.model)
 
     all_datasets = discover_datasets(args.data_root)
     n_total = len(all_datasets)
@@ -48,14 +47,7 @@ def main():
     print(f"📊 Dataset totali: {n_total}")
     print(f"📁 Results: {RECORDS_CSV}\n")
 
-    if args.model.lower().startswith("evo2"):
-        embedder = Evo2TokenizerEmbedder(
-            model_name=args.model,
-            cache_dir="cache/tok_embeddings",
-            max_length=args.evo2_max_length,
-        )
-    else:
-        embedder = TokenizerEmbedder(model_name=args.model)
+    embedder = TokenizerEmbedder(model_name=args.model)
     records = load_records(RECORDS_CSV)
 
     pbar = tqdm(all_datasets, desc="Progress", unit="ds", ncols=70)

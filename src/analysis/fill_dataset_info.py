@@ -1,5 +1,5 @@
 """
-Popola le colonne descrittive dei dataset in records.csv.
+Popola le colonne descrittive dei dataset nel file canonico RF.
 
 Per ogni dataset calcola:
   - n_train, n_test: numero di sequenze
@@ -9,7 +9,7 @@ Per ogni dataset calcola:
   - gc_content_mean: % media di G+C su tutte le sequenze (train+test)
 
 Usage:
-    python3 src/fm_experiment/fill_dataset_info.py
+    python3 src/analysis/fill_dataset_info.py
 """
 
 import argparse
@@ -59,8 +59,10 @@ def compute_dataset_info(train_seqs, train_labels, test_seqs, test_labels) -> di
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fill dataset info columns in records.csv")
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser = argparse.ArgumentParser(
+        description="Fill dataset metadata columns in results/classification/records_rf.csv"
+    )
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     args = parser.parse_args()
 
     all_datasets = discover_datasets(args.data_root)

@@ -2,8 +2,8 @@
 Extract k-mer features and train a Random Forest on all classification datasets.
 
 Usage:
-    python3 src/scripts/train_kmer_rf.py --k-values 4 5 6 7
-    python3 src/scripts/train_kmer_rf.py --k-values 6 --n-workers 8
+    python3 src/scripts/classification/train_kmer_rf.py --k-values 4 5 6 7
+    python3 src/scripts/classification/train_kmer_rf.py --k-values 6 --n-workers 8
 """
 
 import argparse
@@ -28,7 +28,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train RF on k-mer features for all datasets"
     )
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     parser.add_argument("--k-values", nargs="+", type=int, required=True,
                        help="K-mer sizes to evaluate (e.g., 4 5 6)")
     parser.add_argument("--n-workers", type=int, default=2,

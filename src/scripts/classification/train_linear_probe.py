@@ -5,11 +5,11 @@ Parallel execution: datasets processed in parallel using joblib.
 Results are written atomically after each dataset.
 
 Usage:
-    python3 src/scripts/train_linear_probe.py --mode kmer --k-values 4 5 6
-    python3 src/scripts/train_linear_probe.py --mode kmer --k-values 4 5 6 --n-parallel 32
-    python3 src/scripts/train_linear_probe.py --mode fm --model InstaDeepAI/NTv3_650M_pre
-    python3 src/scripts/train_linear_probe.py --mode fm --model LongSafari/hyenadna-medium-160k-seqlen-hf
-    python3 src/scripts/train_linear_probe.py --mode fm --model zhihan1996/DNABERT-2-117M
+    python3 src/scripts/classification/train_linear_probe.py --mode kmer --k-values 4 5 6
+    python3 src/scripts/classification/train_linear_probe.py --mode kmer --k-values 4 5 6 --n-parallel 32
+    python3 src/scripts/classification/train_linear_probe.py --mode fm --model InstaDeepAI/NTv3_650M_pre
+    python3 src/scripts/classification/train_linear_probe.py --mode fm --model LongSafari/hyenadna-medium-160k-seqlen-hf
+    python3 src/scripts/classification/train_linear_probe.py --mode fm --model zhihan1996/DNABERT-2-117M
 """
 
 import argparse
@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from src.core.fcgr import batch_fcgr
 from src.data.loader import discover_datasets, load_dataset
+from src.embedders.fm_embedder import validate_supported_model
 from src.features.kmer_features import kmer_from_grids
 from src.records.records import (
     RECORDS_LINEAR_CSV,
@@ -94,8 +95,11 @@ def main():
 
     if args.mode == "fm" and args.model is None:
         parser.error("--model is required when --mode fm")
-    if args.mode == "fm" and args.model.lower().startswith("evo2"):
-        parser.error("Evo2 is explicitly excluded in this experiment plan")
+    if args.mode == "fm":
+        try:
+            validate_supported_model(args.model)
+        except ValueError as exc:
+            parser.error(str(exc))
     if args.mode == "fm" and args.pooling == "cls" and "hyenadna" in args.model.lower():
         parser.error("CLS pooling is not supported for HyenaDNA")
 

@@ -42,7 +42,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train RF su weighted multiscale k-mer features"
     )
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     parser.add_argument("--k-values", nargs="+", type=int, default=[4, 5, 6])
     parser.add_argument("--weighting", choices=["uniform", "grid"], default="grid")
     parser.add_argument("--grid-values", nargs="+", type=float, default=[0.5, 1.0, 2.0])

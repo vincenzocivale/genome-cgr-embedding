@@ -1,198 +1,147 @@
-# Results File Schema
+# Results Schema
 
-All result files are CSV, one row per dataset (row key = `dataset` column), wide format.  
-Paths are relative to the repository root.
-
----
+All retained result files are CSV unless otherwise noted.
 
 ## `results/classification/records_rf.csv`
 
-Primary RF benchmark. One row per dataset (57 rows).
+Wide table with one row per dataset.
 
-| Column pattern | Description |
-|---|---|
-| `kmer_k{K}_{metric}` | RF on standard k-mer; K ∈ {4,5,6,7}; metric ∈ {MCC, AUROC, F1, Accuracy} |
-| `fm_{model_tag}_{metric}` | RF on FM mean-pool embedding |
-| `tok_{model_tag}_{metric}` | RF on tokenizer (pre-transformer) embedding |
-| `onehot_{W}bp_{metric}` | RF on one-hot encoded central W bp window |
-| `quadtree_{depth}_{p}_{min}_{metric}` | RF on adaptive QuadTree CGR features |
-| `wavelet_l{L}_{metric}` | RF on spatial pyramid pooling features |
-| `multiscale_k{K}_{metric}` | RF on concatenated multiscale k-mer (k=4,5,6) |
-| `n_train`, `n_test`, `n_classes`, … | Dataset metadata |
+- `kmer_k{K}_{metric}`
+- `kmer_multi_k{4_5_6}_{metric}`
+- `wms_k{...}_{weighting}_{metric}`
+- `qt_d{depth}_p{threshold}_m{min_count}_{metric}`
+- `wavelet_l{L}_{metric}`
+- `onehot_{W}bp_{metric}`
+- `fm_{model_tag}_{metric}`
+- `tok_{model_tag}_{metric}`
+- dataset metadata: `n_train`, `n_test`, `n_classes`, `class_balance`, `seq_len_mean`, `seq_len_std`, `seq_len_min`, `seq_len_max`, `gc_content_mean`
 
-`model_tag` = last component of the HuggingFace ID (e.g. `NTv3_650M_pre`).
-
----
+`metric ∈ {MCC, AUROC, F1, Accuracy}`.
 
 ## `results/classification/records_linear_probe.csv`
 
-Linear probe (LogisticRegressionCV + StandardScaler). Same column naming as `records_rf.csv`,
-prefixed with `lp_`: `lp_kmer_k{K}_{metric}`, `lp_fm_{model_tag}_{metric}`.
+Wide linear-probe table with one row per dataset.
 
-Pooling variants use suffix `__pool_{pooling}`, e.g. `lp_fm_NTv3_650M_pre_MCC__pool_max`.
-
----
+- `lp_kmer_k{K}_{metric}`
+- `lp_fm_{model_tag}_{metric}`
+- non-default pooling uses `__pool_{pooling}`, for example `lp_fm_NTv3_650M_pre_MCC__pool_max`
 
 ## `results/classification/records_canonical_kmer.csv`
 
-Canonical (reverse-complement aware) k-mer. Reduces feature dim: k=4→136, k=5→512, k=6→2080.
-
-| Column pattern | Description |
-|---|---|
-| `ckmer_k{K}_{metric}` | RF on canonical k-mer |
-| `ckmer_lp_k{K}_{metric}` | Linear probe on canonical k-mer |
-
----
+- `ckmer_k{K}_{metric}`
+- `ckmer_lp_k{K}_{metric}`
 
 ## `results/classification/records_pca.csv`
 
-PCA (95% variance) applied before RF/linear probe.
-
-| Column pattern | Description |
-|---|---|
-| `pca_kmer_k{K}_{metric}` | PCA + RF on k-mer |
-| `pca_fm_{model_tag}_{metric}` | PCA + RF on FM embedding |
-
----
+- `pca_kmer_k{K}_{metric}`
+- `pca_fm_{model_tag}_{metric}`
 
 ## `results/decomposition/records_decomposition.csv`
 
-Orthogonal decomposition of FM embeddings.
+Wide decomposition table with one row per dataset.
 
-| Column pattern | Description |
-|---|---|
-| `ridge_k{K}_{model_tag}_R2` / `_MSE` | Ridge regression R² of k-mer → FM |
-| `proj_k{K}_{model_tag}_{metric}` | RF on projected (k-mer-explainable) component |
-| `resid_k{K}_{model_tag}_{metric}` | RF on residual (k-mer-unexplained) component |
+- `ridge_k{K}_{model_tag}_R2`
+- `proj_k{K}_{model_tag}_{metric}`
+- `resid_k{K}_{model_tag}_{metric}`
+- optional non-default suffix: `__pool_{pooling}__map_{mapper}`
 
-Non-default pooling or MLP mapper appended as `__pool_{pooling}__map_{mapper}`.
-
----
-
-## `results/regression/lra_records_rf.csv`
-
-LRA benchmark RF results. One row per LRA task.
-
-| Column pattern | Description |
-|---|---|
-| `kmer_k{K}_R2`, `kmer_k{K}_Spearman` | k-mer RF on regression tasks |
-| `kmer_k{K}_MCC`, `kmer_k{K}_AUROC` | k-mer RF on classification tasks |
-| `fm_{model_tag}_R2`, `fm_{model_tag}_Spearman` | FM RF on regression tasks |
-
----
-
-## `results/regression/lra_records_linear_probe.csv`
-
-Same structure as `lra_records_rf.csv`, prefixed with `lp_`.  
-Currently contains k-mer results only (FM results pending — see `docs/missing_experiments.md`).
-
----
+The canonical retained decomposition metrics are `R2`, `MCC` and `AUROC`.
 
 ## `results/analysis/fdr_results.csv`
 
-Benjamini-Hochberg FDR correction on Wilcoxon signed-rank tests (57 datasets).
-
-| Column | Description |
-|---|---|
-| `comparison` | FM model vs k-mer comparison |
-| `n_datasets` | Number of datasets used |
-| `mean_delta`, `median_delta` | Mean/median metric difference |
-| `kmer_wins`, `fm_wins` | Count of datasets where each method wins |
-| `raw_p` | Wilcoxon p-value |
-| `adjusted_p` | BH-corrected p-value |
-| `significant` | Boolean |
-
----
+- `probe_type`
+- `metric`
+- `comparison`
+- `column`
+- `n_datasets`
+- `mean_delta`
+- `median_delta`
+- `kmer_wins`
+- `fm_wins`
+- `raw_p`
+- `adjusted_p`
+- `significant`
 
 ## `results/analysis/auroc_consistency.csv`
 
-Concordance between MCC and AUROC verdicts (which method wins).
-
-| Column | Description |
-|---|---|
-| `fm_model` | Foundation model |
-| `concordance_rate` | Fraction of datasets where MCC and AUROC agree |
-| `n_concordant`, `n_discordant` | Counts |
-| `kmer_wins_mcc`, `kmer_wins_auroc` | Win counts per metric |
-
----
-
-## `results/efficiency/efficiency.csv`
-
-Efficiency logging via `src/training/efficiency.py:log_efficiency()`.  
-Appended incrementally.
-
-| Column | Description |
-|---|---|
-| `timestamp` | UTC ISO timestamp |
-| `dataset` | Dataset name |
-| `method` | Feature extraction method |
-| `feat_dim` | Feature dimensionality |
-| `time_sec` | Wall-clock seconds |
-
----
-
-## `results/efficiency/efficiency_gpu_parallel.csv`
-
-Broader efficiency sweep at multiple sequence lengths.
-
-| Column | Description |
-|---|---|
-| `method` | Method identifier |
-| `seq_len` | Input sequence length |
-| `n_seqs` | Number of sequences timed |
-| `params_M` | Model parameters (millions) |
-| `duration_sec` | Wall-clock time |
-| `GFLOPS_per_seq` | Measured GFLOPs per sequence |
-| `GFLOPS_total` | Total GFLOPs for batch |
-
----
-
-## `results/efficiency/records_efficiency.csv`
-
-Per-dataset extraction timing summary used by `scripts/paper_stats_audit.py`.
-
-| Column | Description |
-|---|---|
-| `method`, `seq_len`, `params_M` | Method metadata |
-| `GFLOPS_per_seq`, `GFLOPS_total` | Compute cost |
-| `AUROC` | Downstream task performance |
-| `emissions`, `duration_sec` | Energy and time |
-
----
-
-## `results/exploratory/splice_residual_motif_overlap.csv`
-
-Splice motif attribution on 4 splice datasets (NTv3 residual component).
-
-| Column | Description |
-|---|---|
-| `dataset` | Splice dataset name |
-| `motif` | Motif pattern (e.g. GT-AG, branch point) |
-| `n_matches` | Number of motif occurrences in test set |
-| `mean_residual_norm_drop` | Average residual norm drop after motif perturbation |
-| `overlap_rate` | Fraction of sequences with this motif |
-
----
+- `probe_type`
+- `fm_model`
+- `n_datasets`
+- `concordance_rate`
+- `n_concordant`
+- `n_discordant`
+- `kmer_wins_mcc`
+- `kmer_wins_auroc`
+- `discordant_datasets`
 
 ## `results/concat/records_concat_best.csv`
 
-Best k-mer + FM concatenation RF results. Columns mirror `records_rf.csv`.
+One row per dataset for the concatenation of the best FM representation and the
+best retained k-mer representation.
 
----
+- `dataset`
+- `metric_select`
+- `kmer_choice`
+- `kmer_col`
+- `fm_model`
+- `fm_col`
+- `feat_dim_fm`
+- `feat_dim_kmer`
+- `MCC`
+- `AUROC`
+- `F1`
+- `Accuracy`
 
 ## `results/classification/truncation_analysis.csv`
 
-| Column | Description |
-|---|---|
-| `dataset`, `model`, `split` | Identifiers |
-| `n_sequences` | Total sequences |
-| `n_truncated` | Sequences exceeding model max tokens |
-| `truncation_rate` | Fraction truncated |
-| `mean_tokens`, `max_tokens` | Token length statistics |
+One row per `(model, dataset, split)`.
 
----
+- `model`
+- `dataset`
+- `split`
+- `n_sequences`
+- `n_truncated`
+- `truncation_rate`
+- `mean_tokens`
+- `max_tokens`
+- `fraction_retained_mean`
+- `max_length`
 
-## `results/archive/`
+## `results/exploratory/splice_residual_motif_overlap.csv`
 
-Run logs from earlier experiments. Not used by any downstream analysis.
+One row per `(dataset, motif)`.
+
+- `dataset`
+- `motif`
+- `n_matched`
+- `n_total_test`
+- `overlap_rate`
+- `mean_delta_resid_l2`
+- `std_delta_resid_l2`
+
+## `results/efficiency/efficiency.csv`
+
+Append-only timing log from training scripts.
+
+- `timestamp`
+- `dataset`
+- `method`
+- `feat_dim`
+- `time_sec`
+
+## `results/efficiency/efficiency_gpu_parallel.csv`
+
+Synthetic sequence-length benchmark used for the cost-scaling figure.
+
+- `method`
+- `seq_len`
+- `n_seqs`
+- `params_M`
+- `duration_sec`
+- `GFLOPS_per_seq`
+- `GFLOPS_total`
+- `GFLOPS_theory_per_seq`
+
+## `results/figures/`
+
+Publication-ready PDF figures exported by `scripts/export_paper_figures.py`.

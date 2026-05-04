@@ -1,12 +1,13 @@
 """
 Train RF con one-hot encoding della finestra centrale su tutti i dataset di classificazione.
 
-Segue lo stesso pattern di train_kmer_rf.py e scrive risultati in results/records.csv
+Segue lo stesso pattern di `train_kmer_rf.py` e scrive risultati in
+`results/classification/records_rf.csv`
 con colonne onehot_{W}bp_{metric}.
 
 Usage:
-    python3 src/fm_experiment/train_onehot_rf.py --windows 512 1024 2048
-    python3 src/fm_experiment/train_onehot_rf.py --windows 512 --n-workers 8
+    python3 src/scripts/classification/train_onehot_rf.py --windows 512 1024 2048
+    python3 src/scripts/classification/train_onehot_rf.py --windows 512 --n-workers 8
 """
 
 import argparse
@@ -79,7 +80,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train RF con one-hot della finestra centrale su tutti i dataset"
     )
-    parser.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    parser.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     parser.add_argument("--windows", nargs="+", type=int, default=[512, 1024, 2048],
                         metavar="W", help="Finestre centrali in bp (default: 512 1024 2048)")
     parser.add_argument("--n-workers", type=int, default=8)

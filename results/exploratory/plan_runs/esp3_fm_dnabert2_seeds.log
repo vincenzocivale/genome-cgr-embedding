@@ -1,25 +1,0 @@
-
-RF with seeds
-Mode      : fm
-Seeds     : [42, 0, 1, 2, 3]
-Datasets  : 57
-Results   : results/classification/records_rf.csv
-
-Loading model zhihan1996/DNABERT-2-117M on cuda ...
-Loading weights:   0%|          | 0/136 [00:00<?, ?it/s]Loading weights: 100%|██████████| 136/136 [00:00<00:00, 14025.70it/s]
-[1mBertModel LOAD REPORT[0m from: zhihan1996/DNABERT-2-117M
-Key                                        | Status     | 
--------------------------------------------+------------+-
-cls.predictions.transform.dense.bias       | UNEXPECTED | 
-cls.predictions.transform.LayerNorm.bias   | UNEXPECTED | 
-cls.predictions.transform.dense.weight     | UNEXPECTED | 
-cls.predictions.decoder.bias               | UNEXPECTED | 
-cls.predictions.transform.LayerNorm.weight | UNEXPECTED | 
-pooler.dense.weight                        | MISSING    | 
-pooler.dense.bias                          | MISSING    | 
-
-[3mNotes:
-- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.
-- MISSING[3m	:those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.[0m
-Model ready.
-  0%|                                                    | 0/57 [00:00<?, ?ds/s]EMP/Yeast_H3 fm:   0%|                                   | 0/57 [42:41<?, ?ds/s]EMP/Yeast_H3 fm:   2%|▍                     | 1/57 [42:41<39:51:10, 2561.98s/ds]/tmp/tmpfeye0ju9: line 17: 2172325 Terminated              nice -n 10 python src/scripts/classification/train_rf_with_seeds.py --mode fm --data-root data/dna_foundation_benchmark --model zhihan1996/DNABERT-2-117M --fm-batch-size 32 --n-jobs-rf 1

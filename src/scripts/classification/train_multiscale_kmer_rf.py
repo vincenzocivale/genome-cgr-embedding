@@ -9,7 +9,7 @@ Per ogni sequenza:
   5. Addestra RF con GridSearchCV
 
 Usage:
-    python3 src/fm_experiment/train_multiscale_kmer_rf.py --k-values 4 5 6
+    python3 src/scripts/classification/train_multiscale_kmer_rf.py --k-values 4 5 6
 """
 
 import argparse
@@ -39,7 +39,7 @@ def main():
         description="Train RF su multiscale k-mer features per tutti i dataset"
     )
     parser.add_argument(
-        "--data-root", default="/data/genomic_bench/dna_foundation_benchmark/"
+        "--data-root", default="data/dna_foundation_benchmark/"
     )
     parser.add_argument(
         "--k-values",

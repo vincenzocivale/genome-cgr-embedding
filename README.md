@@ -2,78 +2,63 @@
 
 Benchmarking DNA sequence representations for genomic classification.
 
-This project compares the **informational quality** of k-mer frequency vectors (derived from Chaos Game Representation) against embeddings produced by pre-trained **genomic Foundation Models** (NTv3, HyenaDNA, DNABERT-2), using Random Forest classifiers and linear probes as the downstream probe.
+This repository compares fixed-resolution and multiscale k-mer features derived
+from Chaos Game Representation against embeddings from three genomic foundation
+models:
 
-A supplementary experiment fits Ridge Regression from k-mer features to FM embeddings, measuring how much of the FM's information is already captured by k-mer statistics.
+- `InstaDeepAI/NTv3_650M_pre`
+- `LongSafari/hyenadna-medium-160k-seqlen-hf`
+- `zhihan1996/DNABERT-2-117M`
 
----
+The public repo is intentionally minimal: it retains the experiments used in the
+paper and supplementary material, the canonical result tables, and the scripts
+needed to regenerate publication figures and summary statistics.
 
-## Methods compared
+## Retained experiments
 
-| Method | Description |
-|---|---|
-| `kmer_k{K}` | L1-normalised k-mer frequency vector (4^K dims) from FCGR |
-| `multi_k{4_5_6}` | Concatenation of k=4,5,6 vectors, each L2-normalised |
-| `wms_k{…}` | Weighted multiscale k-mer (LogReg CV weight search) |
-| `quadtree_{…}` | Adaptive QuadTree CGR features (chi-square splitting) |
-| `wavelet_{…}` | Spatial pyramid pooling on FCGR at multiple resolutions |
-| `onehot_{W}bp` | One-hot encoding of the central W base pairs |
-| `fm_{model}` | Mean-pooled last hidden state of a pre-trained FM |
-| `tok_{model}` | Mean-pooled embedding-layer output (pre-transformer) |
-| `ridge_k{K}_{model}` | Ridge regression R²: k-mer → FM embedding |
-
----
-
-## Documentation
-
-- [Getting started and installation](docs/getting_started.md)
-- [Experiment reference](docs/experiments.md)
-- [Results file schema](docs/results_schema.md)
-- [Missing / in-progress experiments](docs/missing_experiments.md)
-
----
+- Classification with Random Forest on k-mer, multiscale k-mer, weighted multiscale, quadtree, wavelet, one-hot, FM and token-embedding features
+- Linear probe validation
+- Canonical reverse-complement k-mer benchmark
+- PCA ablations on k-mer and FM features
+- Orthogonal decomposition of FM embeddings into k-mer-explainable and residual components
+- Statistical post-processing (`FDR`, `AUROC` consistency)
+- Truncation audit across retained FM models
+- Splice residual motif attribution
+- FM + best k-mer concatenation benchmark
+- Publication figure export and paper statistics audit
 
 ## Repository structure
 
-```
+```text
 genome-cgr-embedding/
-├── src/
-│   ├── core/                # FCGR and QuadTree algorithms
-│   ├── data/                # Dataset discovery and loading
-│   ├── embedders/           # FM embedding extractors (NTv3, HyenaDNA, DNABERT-2)
-│   ├── features/            # K-mer feature extraction
-│   ├── training/            # RF, Ridge, Linear, MLP pipelines + efficiency logging
-│   ├── analysis/            # FDR, AUROC consistency, mutual information
-│   ├── records/             # Results persistence (CSV schema & helpers)
-│   └── scripts/
-│       ├── classification/  # RF + linear probe + canonical k-mer experiments
-│       ├── decomposition/   # Ridge/MLP k-mer→FM decomposition
-│       ├── regression/      # Long Range Arena benchmark
-│       ├── analysis/        # Motif analysis, confusion matrix, truncation
-│       └── utils/           # Benchmark runners, efficiency, migration
-├── results/
-│   ├── classification/      # records_rf.csv, records_linear_probe.csv, records_canonical_kmer.csv
-│   ├── decomposition/       # records_decomposition.csv
-│   ├── regression/          # lra_records_rf.csv, lra_records_linear_probe.csv
-│   ├── analysis/            # fdr_results.csv, auroc_consistency.csv
-│   ├── efficiency/          # efficiency.csv, efficiency_gpu_parallel.csv
-│   ├── exploratory/         # fusion, MI, info_theory, splice motif overlap
-│   ├── concat/              # FM + k-mer concatenation experiments
-│   └── figures/             # Publication-ready PDF figures
 ├── docs/
 │   ├── getting_started.md
 │   ├── experiments.md
-│   ├── results_schema.md
-│   ├── missing_experiments.md
-│   └── background/          # Theory, ablation plans
-├── notebooks/               # Numbered Jupyter analysis notebooks
-├── scripts/                 # Paper figure export and stats audit
+│   └── results_schema.md
+├── results/
+│   ├── analysis/
+│   ├── classification/
+│   ├── concat/
+│   ├── decomposition/
+│   ├── efficiency/
+│   ├── exploratory/
+│   └── figures/
+├── scripts/
+│   ├── export_paper_figures.py
+│   └── paper_stats_audit.py
+├── src/
+│   ├── analysis/
+│   ├── core/
+│   ├── data/
+│   ├── embedders/
+│   ├── features/
+│   ├── records/
+│   ├── scripts/
+│   └── training/
 ├── tests/
-├── cache/                   # Pre-computed embeddings (.npz, git-ignored)
+├── .gitignore
 └── environment.yml
 ```
-
----
 
 ## Installation
 
@@ -82,57 +67,67 @@ conda env create -f environment.yml
 conda activate cgr_bench
 ```
 
-See [docs/getting_started.md](docs/getting_started.md) for full setup instructions.
-
----
-
 ## Quick start
 
 ```bash
-# 1. k-mer RF (all 57 classification datasets)
-python3 src/scripts/classification/train_kmer_rf.py --k-values 4 5 6 --n-workers 4
+# 1. Random Forest on fixed-resolution k-mers
+python3 src/scripts/classification/train_kmer_rf.py --k-values 4 5 6
 
-# 2. FM embeddings + RF
+# 2. Random Forest on FM embeddings
 CUDA_VISIBLE_DEVICES=0 python3 src/scripts/classification/train_fm_rf.py \
-    --model InstaDeepAI/NTv3_650M_pre
+  --model InstaDeepAI/NTv3_650M_pre
 
-# 3. Ridge decomposition: how well do k-mers predict FM embeddings?
+# 3. Linear probe on FM embeddings
+CUDA_VISIBLE_DEVICES=0 python3 src/scripts/classification/train_linear_probe.py \
+  --mode fm --model InstaDeepAI/NTv3_650M_pre --pooling mean
+
+# 4. Decomposition benchmark
 CUDA_VISIBLE_DEVICES=0 python3 src/scripts/decomposition/train_decomposition.py \
-    --model InstaDeepAI/NTv3_650M_pre --mapper ridge --k-values 4 5 6
+  --model InstaDeepAI/NTv3_650M_pre --mapper ridge --k-values 4 5 6
 
-# 4. Linear probe (verify RF results)
-python3 src/scripts/classification/train_linear_probe.py --mode kmer --k-values 4 5 6
+# 5. Export publication figures
+python3 scripts/export_paper_figures.py
 
-# 5. Long Range Arena benchmark (requires genome FASTA)
-python3 src/scripts/regression/train_lra_benchmark.py \
-    --k-values 4 5 6 --hg38 /path/to/hg38.fa
+# 6. Print publication audit
+python3 scripts/paper_stats_audit.py
 ```
 
-Results are written incrementally to `results/classification/records_rf.csv`; completed configurations are automatically skipped on re-runs.
+## Canonical results
 
-See [docs/experiments.md](docs/experiments.md) for the full experiment reference with all scripts and output files.
+The retained single sources of truth are:
 
----
+- `results/classification/records_rf.csv`
+- `results/classification/records_linear_probe.csv`
+- `results/classification/records_canonical_kmer.csv`
+- `results/classification/records_pca.csv`
+- `results/decomposition/records_decomposition.csv`
+- `results/analysis/fdr_results.csv`
+- `results/analysis/auroc_consistency.csv`
+- `results/concat/records_concat_best.csv`
+- `results/classification/truncation_analysis.csv`
+- `results/exploratory/splice_residual_motif_overlap.csv`
+- `results/efficiency/efficiency.csv`
+- `results/efficiency/efficiency_gpu_parallel.csv`
+- `results/figures/`
 
-## Dataset format
+Derived tables such as “best k per dataset” are recomputed on the fly by the
+public scripts and are not stored as separate tracked artifacts.
 
-Datasets are expected as `train.csv` / `test.csv` files:
+## Dataset layout
 
-```
+Classification datasets are expected as:
+
+```text
 data/dna_foundation_benchmark/
-├── <category>/<task_name>/
-│   ├── train.csv   # columns: sequence, label
+├── <group>/<dataset_name>/
+│   ├── train.csv
 │   └── test.csv
 ```
 
----
+Each CSV must expose `sequence` and `label` columns.
 
-## Supported FM models
+## Documentation
 
-| Model | HuggingFace ID |
-|---|---|
-| NTv3 650M | `InstaDeepAI/NTv3_650M_pre` |
-| HyenaDNA medium 160k | `LongSafari/hyenadna-medium-160k-seqlen-hf` |
-| DNABERT-2 | `zhihan1996/DNABERT-2-117M` |
-
-> **Note:** Evo2 is excluded from all experiments.
+- `docs/getting_started.md`
+- `docs/experiments.md`
+- `docs/results_schema.md`

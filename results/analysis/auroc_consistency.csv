@@ -2,7 +2,6 @@ probe_type,fm_model,n_datasets,concordance_rate,n_concordant,n_discordant,kmer_w
 rf,NTv3_650M_pre,57,0.8771929824561403,50,7,20,27,EMP/Yeast_H3K4me2|EMP/Yeast_H4ac|deep4mc/E.coli_4mC|deep4mc/G.pickeringii_4mC|deep4mc/G.subterraneus_4mC|enhancers/enhancer_strength|iDHS-EL/DNase_I
 rf,hyenadna-medium-160k-seqlen-hf,57,0.8596491228070176,49,8,49,53,deep4mc/E.coli_4mC|deep4mc/G.pickeringii_4mC|deep4mc/G.subterraneus_4mC|enhancers/enhancer|enhancers/enhancer_strength|iPro-WAEL/Promoter_HUVEC|prom/promoter_tata_300bps|splice/splice_site_type_DNABERT
 rf,DNABERT-2-117M,57,0.9122807017543859,52,5,54,53,enhancers/enhancer_strength|iPro-WAEL/Promoter_GM12878|iPro-WAEL/Promoter_HUVEC|iPro-WAEL/Promoter_Hela-S3|splice/splice_site_type_NT
-rf,evo2_7b_base,38,0.9473684210526315,36,2,36,38,deep4mc/E.coli_4mC|deep4mc/G.subterraneus_4mC
 linear_probe,NTv3_650M_pre__pool_max,57,0.9473684210526315,54,3,18,19,deep4mc/G.pickeringii_4mC|iDHS-EL/DNase_I|prom/promoter_tata_70bps
 linear_probe,hyenadna-medium-160k-seqlen-hf,57,0.9122807017543859,52,5,23,20,deep4mc/G.subterraneus_4mC|iDHS-EL/DNase_I|iPro-WAEL/Promoter_Hela-S3|prom/promoter_all_70bps|tf/Human_TFBS_2
 linear_probe,DNABERT-2-117M,57,0.9122807017543859,52,5,53,52,EMP/Yeast_H4|EMP/Yeast_H3K4me1|genomic_benchmark/enhancer_cohn|iPro-WAEL/Promoter_HUVEC|iPro-WAEL/Promoter_Hela-S3

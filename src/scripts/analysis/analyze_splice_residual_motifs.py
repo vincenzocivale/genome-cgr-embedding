@@ -31,7 +31,7 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from src.data.loader import discover_datasets, load_dataset
-from src.embedders.fm_embedder import FMEmbedder
+from src.embedders.fm_embedder import FMEmbedder, validate_supported_model
 from src.features.kmer_features import extract_kmer_features
 from src.training.ridge_mapping import fit_and_evaluate
 
@@ -86,18 +86,17 @@ def _embed_no_cache(fm: FMEmbedder, seqs: list[str], batch_size: int) -> np.ndar
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Splice motif analysis on NTv3 residuals")
-    p.add_argument("--data-root", default="/data/genomic_bench/dna_foundation_benchmark/")
+    p.add_argument("--data-root", default="data/dna_foundation_benchmark/")
     p.add_argument("--model", default="InstaDeepAI/NTv3_650M_pre")
     p.add_argument("--k", type=int, default=6)
     p.add_argument("--n-workers", type=int, default=1)
     p.add_argument("--fm-batch-size", type=int, default=16)
     p.add_argument("--max-seqs-per-motif", type=int, default=128)
     p.add_argument("--output-csv", default="results/exploratory/splice_residual_motif_overlap.csv")
-    p.add_argument("--output-fig-dir", default="results/figures_pdf")
+    p.add_argument("--output-fig-dir", default="results/figures/splice_motifs")
     args = p.parse_args()
 
-    if args.model.lower().startswith("evo2"):
-        raise ValueError("Evo2 is excluded from this plan")
+    validate_supported_model(args.model)
 
     all_ds = discover_datasets(args.data_root)
     splice_ds = [d for d in all_ds if d["name"].startswith("splice/")]

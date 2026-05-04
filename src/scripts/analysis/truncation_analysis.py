@@ -9,7 +9,6 @@ For each (model, dataset, split) triple, computes:
   - fraction_retained_mean: mean(max_length / token_count) for truncated seqs; 1.0 if none
 
 Tokenizers are loaded WITHOUT model weights (CPU only, no GPU required).
-Evo2 is skipped unless --include-evo2 is passed and the vortex package is available.
 
 Usage:
     python3 src/scripts/truncation_analysis.py \\
@@ -55,11 +54,6 @@ MODELS: dict[str, dict] = {
         "trust_remote_code": True,
         "tokenizer_type": "hf",
     },
-    "evo2_7b": {
-        "max_length": None,
-        "trust_remote_code": None,
-        "tokenizer_type": "evo2",
-    },
 }
 
 OUTPUT_COLS = [
@@ -83,24 +77,7 @@ def _load_hf_tokenizer(model_name: str, trust_remote_code: bool):
     from transformers import AutoTokenizer
     return AutoTokenizer.from_pretrained(model_name, trust_remote_code=trust_remote_code)
 
-
-def _load_evo2_tokenizer():
-    try:
-        from vortex.model.tokenizer import CharLevelTokenizer
-        return CharLevelTokenizer(512)
-    except ImportError:
-        return None
-
-
 def load_tokenizer(model_name: str, cfg: dict):
-    if cfg["tokenizer_type"] == "evo2":
-        tok = _load_evo2_tokenizer()
-        if tok is None:
-            warnings.warn(
-                "vortex package not found — skipping Evo2. "
-                "Switch to the evo2_bench conda environment to include it."
-            )
-        return tok
     return _load_hf_tokenizer(model_name, cfg["trust_remote_code"])
 
 
@@ -123,16 +100,7 @@ def _count_tokens_hf(tokenizer, sequences: np.ndarray, batch_size: int = 256) ->
     return np.array(counts, dtype=np.int64)
 
 
-def _count_tokens_evo2(tokenizer, sequences: np.ndarray) -> np.ndarray:
-    # CharLevelTokenizer: tokenize() → np.frombuffer(text.encode('utf-8'), uint8)
-    # For pure ASCII DNA sequences len(tokens) == len(seq).
-    counts = [len(tokenizer.tokenize(seq)) for seq in sequences]
-    return np.array(counts, dtype=np.int64)
-
-
 def count_tokens(tokenizer, sequences: np.ndarray, cfg: dict, batch_size: int) -> np.ndarray:
-    if cfg["tokenizer_type"] == "evo2":
-        return _count_tokens_evo2(tokenizer, sequences)
     return _count_tokens_hf(tokenizer, sequences, batch_size)
 
 
@@ -228,7 +196,6 @@ def make_plots(df: pd.DataFrame, records_csv: str, output_path: str) -> None:
         "InstaDeepAI/NTv3_650M_pre": "NTv3",
         "LongSafari/hyenadna-medium-160k-seqlen-hf": "HyenaDNA",
         "zhihan1996/DNABERT-2-117M": "DNABERT-2",
-        "evo2_7b": "Evo2",
     }
     agg["model_short"] = agg["model"].map(model_short).fillna(agg["model"])
 
@@ -318,7 +285,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--data-root",
-        default="/raid/DATASETS/dna_foundation_benchmark/",
+        default="data/dna_foundation_benchmark/",
         help="Root directory containing dataset subdirectories",
     )
     parser.add_argument(
@@ -333,13 +300,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--records-csv",
-        default="results/classification/records.csv",
-        help="records.csv used to sort datasets by seq_len_max in the plot",
-    )
-    parser.add_argument(
-        "--include-evo2",
-        action="store_true",
-        help="Attempt to include Evo2 (requires vortex package in environment)",
+        default="results/classification/records_rf.csv",
+        help="Canonical RF results file used to sort datasets by seq_len_max in the plot",
     )
     parser.add_argument(
         "--batch-size", type=int, default=256,
@@ -381,10 +343,7 @@ def main() -> None:
     # -----------------------------------------------------------------------
     # Determine which models to run
     # -----------------------------------------------------------------------
-    active_models = {
-        m: cfg for m, cfg in MODELS.items()
-        if cfg["tokenizer_type"] != "evo2" or args.include_evo2
-    }
+    active_models = MODELS
 
     failures: list[str] = []
     rows_written = 0

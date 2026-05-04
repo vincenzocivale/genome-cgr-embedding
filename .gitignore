@@ -1,5 +1,10 @@
-__pycache__
-benchmarks_repo
-/data/dna_foundation_benchmark
+__pycache__/
+*.pyc
+.pytest_cache/
+
 cache/
-results/fm_approximation/
+/data/dna_foundation_benchmark/
+
+*.log
+*.lock
+results/classification/truncation_analysis.png
