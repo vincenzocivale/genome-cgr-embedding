@@ -170,12 +170,16 @@ def main():
 
         # FM embeddings
         if fm_model not in embedders:
-            if "hyenadna" in fm_model.lower():
-                embedders[fm_model] = HyenaEmbedder(model_name=fm_model,
-                                                    cache_dir="cache/hyena_embeddings")
-            else:
-                embedders[fm_model] = FMEmbedder(model_name=fm_model,
-                                                cache_dir="cache/fm_embeddings")
+                if "hyenadna" in fm_model.lower():
+                    embedders[fm_model] = HyenaEmbedder(model_name=fm_model,
+                                                        cache_dir="cache/hyena_embeddings")
+                elif fm_model.lower().startswith("google/enformer"):
+                    from src.embedders.enformer_embedder import EnformerEmbedder
+                    embedders[fm_model] = EnformerEmbedder(model_name=fm_model,
+                                                           cache_dir="cache/fm_embeddings")
+                else:
+                    embedders[fm_model] = FMEmbedder(model_name=fm_model,
+                                                    cache_dir="cache/fm_embeddings")
 
         fm = embedders[fm_model]
         Y_train = fm.embed_sequences(train_seqs, name, "train", args.fm_batch_size)

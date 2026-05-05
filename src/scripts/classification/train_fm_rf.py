@@ -67,6 +67,9 @@ def main():
         )
     elif "hyenadna" in model_lc:
         fm = HyenaEmbedder(model_name=args.model, cache_dir="cache/hyena_embeddings")
+    elif model_lc.startswith("google/enformer"):
+        from src.embedders.enformer_embedder import EnformerEmbedder
+        fm = EnformerEmbedder(model_name=args.model, cache_dir="cache/fm_embeddings")
     else:
         fm = FMEmbedder(model_name=args.model, cache_dir="cache/fm_embeddings")
 

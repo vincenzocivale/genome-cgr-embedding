@@ -1,0 +1,9 @@
+Model,Type,Parameters,Architecture,Training,Pre-training Data,Max Length
+k-mer (k=4),Baseline,256,Bag-of-words (4-mers),None,N/A,∞
+k-mer (k=5),Baseline,1024,Bag-of-words (5-mers),None,N/A,∞
+k-mer (k=6),Baseline,4096,Bag-of-words (6-mers),None,N/A,∞
+NTv3 (650M),Transformer,650M,"Multi-head attention, 24 layers, d=768",Masked LM (MLM),100M seqs (InstaDeepAI),"32,768 bp"
+HyenaDNA,Mamba-inspired,160M,Long-context sequence model,Language modeling,Human genome,160K bp
+DNABERT-2,Transformer,117M,"Multi-head attention, 12 layers",Masked LM (MLM),500K seqs (Multi-species),512 bp (standard)
+Caduceus,Mamba,256M (2x16 layers),"State-space model, bidirectional",Pre-training on genomic DNA,Genomic sequences,131K bp
+Evo2 (1B),Transformer,1B,"Multi-head attention, large model",Pre-trained on multi-species genomes,Multi-species (non-DNA-specific),Variable

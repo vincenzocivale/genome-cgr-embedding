@@ -24,6 +24,7 @@ SUPPORTED_FM_MODELS = (
     "LongSafari/hyenadna-medium-160k-seqlen-hf",
     "zhihan1996/DNABERT-2-117M",
     "kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16",
+    "google/enformer",
 )
 
 # Models that use AutoModel (encoder backbone only, no LM head)

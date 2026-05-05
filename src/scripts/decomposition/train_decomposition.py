@@ -59,6 +59,9 @@ def _make_embedder(model_name: str, fm_batch_size: int, pooling: str):
         from src.embedders.evo2_embedder import Evo2Embedder
         return Evo2Embedder(model_name=model_name,
                             cache_dir="cache/fm_embeddings")
+    if model_lc.startswith("google/enformer"):
+        from src.embedders.enformer_embedder import EnformerEmbedder
+        return EnformerEmbedder(model_name=model_name, cache_dir="cache/fm_embeddings")
     elif "hyenadna" in model_lc:
         from src.embedders.hyena_embedder import HyenaEmbedder
         return HyenaEmbedder(model_name=model_name,

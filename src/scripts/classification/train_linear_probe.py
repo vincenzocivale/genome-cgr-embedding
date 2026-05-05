@@ -159,6 +159,9 @@ def main():
         if "hyenadna" in model_lc:
             from src.embedders.hyena_embedder import HyenaEmbedder
             fm = HyenaEmbedder(model_name=args.model, cache_dir="cache/hyena_embeddings", pooling=args.pooling)
+        elif model_lc.startswith("google/enformer"):
+            from src.embedders.enformer_embedder import EnformerEmbedder
+            fm = EnformerEmbedder(model_name=args.model, cache_dir="cache/fm_embeddings")
         else:
             from src.embedders.fm_embedder import FMEmbedder
             fm = FMEmbedder(model_name=args.model, cache_dir="cache/fm_embeddings", pooling=args.pooling)

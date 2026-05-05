@@ -131,10 +131,13 @@ def benchmark_fm(model_name: str, method_key: str, seq_lens: list[int],
                  output_path: str) -> pd.DataFrame:
     from src.embedders.fm_embedder import FMEmbedder
     from src.embedders.hyena_embedder import HyenaEmbedder
+    from src.embedders.enformer_embedder import EnformerEmbedder
 
     model_lc = model_name.lower()
     if "hyenadna" in model_lc:
         fm = HyenaEmbedder(model_name=model_name, cache_dir="cache/hyena_embeddings")
+    elif model_lc.startswith("google/enformer"):
+        fm = EnformerEmbedder(model_name=model_name, cache_dir="cache/fm_embeddings")
     else:
         fm = FMEmbedder(model_name=model_name, cache_dir="cache/fm_embeddings")
 

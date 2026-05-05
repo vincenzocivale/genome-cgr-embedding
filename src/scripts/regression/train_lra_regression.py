@@ -225,6 +225,9 @@ def make_embedder(model_name, pooling="mean"):
         from src.embedders.evo2_embedder import Evo2Embedder
         return Evo2Embedder(model_name=model_name,
                             cache_dir="cache/lra_fm_embeddings")
+    if model_name.lower().startswith("google/enformer"):
+        from src.embedders.enformer_embedder import EnformerEmbedder
+        return EnformerEmbedder(model_name=model_name, cache_dir="cache/lra_fm_embeddings")
     if "hyenadna" in model_name.lower():
         from src.embedders.hyena_embedder import HyenaEmbedder
         return HyenaEmbedder(model_name=model_name,

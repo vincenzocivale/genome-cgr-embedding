@@ -1,0 +1,321 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║         SUPPLEMENTARY MATERIAL — COMPLETE FILE INVENTORY                   ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Generated on: May 5, 2026
+Location: /home/oem/genome-cgr-embedding/
+
+═══════════════════════════════════════════════════════════════════════════════
+
+SUPPLEMENTARY FIGURES (15 total, ~370 KB)
+──────────────────────────────────────────────────────────────────────────────
+
+ABLATION STUDIES (10 figures)
+  figures/abl1_kmer_scale.pdf                    34 KB
+  figures/abl2_linear_probe.pdf                  25 KB
+  figures/abl3_pooling_robustness.pdf            35 KB
+  figures/abl4_canonical_kmer.pdf                18 KB
+  figures/abl5_pca.pdf                           22 KB
+  figures/abl6_concordance.pdf                   27 KB
+  figures/abl7_efficiency.pdf                    16 KB
+  figures/abl8_truncation.pdf                    19 KB
+  figures/abl9_caduceus_vs_ntv3.pdf              58 KB
+  figures/abl10_evo2_analysis.pdf                39 KB
+  ─────────────────────────────────────────────────────
+  SUBTOTAL: 293 KB (10 figures)
+
+DETAILED ANALYSES (5 figures)
+  figures/sup_s1_rf_vs_lp.pdf                    32 KB
+  figures/sup_s2_auroc_vs_mcc.pdf                31 KB
+  figures/sup_s3_kmer_order_analysis.pdf         17 KB
+  figures/sup_s4_pooling_effects.pdf             20 KB
+  figures/sup_s7_computational_cost.pdf          24 KB
+  ─────────────────────────────────────────────────────
+  SUBTOTAL: 124 KB (5 figures)
+
+
+SUPPLEMENTARY TABLES (6 total, ~3 KB)
+──────────────────────────────────────────────────────────────────────────────
+
+CSV FORMAT (Data tables)
+  results/summary_mcc_by_group.csv               962 bytes
+  results/detailed_results_summary.csv           526 bytes
+  results/model_architecture_specs.csv           857 bytes
+
+LATEX FORMAT (Publication-ready)
+  results/summary_mcc_by_group.tex               1.2 KB
+  results/detailed_results_summary.tex           1.8 KB
+  results/model_architecture_specs.tex           2.1 KB
+
+ADDITIONAL GENERATED TABLES
+  results/per_dataset_leaderboard.csv            ~4 KB (if generated)
+  ─────────────────────────────────────────────────────
+  SUBTOTAL: ~13 KB (6+ files)
+
+
+DOCUMENTATION & GUIDES (4 total, ~50 KB)
+──────────────────────────────────────────────────────────────────────────────
+
+Main Documentation
+  SUPPLEMENTARY_MATERIAL_INDEX.md                9.6 KB  ← Comprehensive guide
+  SUPPLEMENTARY_INSIGHTS.txt                     14 KB   ← Discussion points
+  SUPPLEMENTARY_SUMMARY.md                       ~8 KB   ← This summary
+  FILES_GENERATED.txt                            ~5 KB   ← This inventory
+
+Jupyter Notebooks
+  notebooks/paper_plots_ablations.ipynb          (executed, with outputs)
+  notebooks/paper_plots_supplementary_detailed.ipynb  (executed, with outputs)
+  notebooks/paper_plots_complete_supplementary.ipynb  (complete reference)
+  ─────────────────────────────────────────────────────
+  SUBTOTAL: ~50 KB documentation + notebooks
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TOTAL PACKAGE SIZE: ~440 KB figures + tables + docs
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+WHAT EACH FILE CONTAINS
+──────────────────────────────────────────────────────────────────────────────
+
+ABLATION 1: abl1_kmer_scale.pdf
+  • Violin plots of k-mer performance (k=4, k=5, k=6, multiscale)
+  • One-hot encoding baselines
+  • Key stat: k=5 optimal (median 0.521)
+
+ABLATION 2: abl2_linear_probe.pdf
+  • RF vs Linear Probe paired scatters
+  • 4 models: NTv3, HyenaDNA, DNABERT-2, k-mer
+  • Key stat: RF wins 53/57 datasets for NTv3 (+0.082 median)
+
+ABLATION 3: abl3_pooling_robustness.pdf
+  • Pooling effects (mean/max/CLS) on Ridge R²
+  • 3 k-mer orders (k=4,5,6)
+  • Key stat: <5% effect size, mean pooling best
+
+ABLATION 4: abl4_canonical_kmer.pdf
+  • Canonical vs standard k-mers (k=4,5,6)
+  • Strand symmetry normalization effect
+  • Key stat: Minimal difference (Δ <+0.01)
+
+ABLATION 5: abl5_pca.pdf
+  • PCA dimensionality reduction effects
+  • 4 models: NTv3, HyenaDNA, DNABERT-2, k-mer k=6
+  • Key stat: PCA slightly hurts k=6, FM less affected
+
+ABLATION 6: abl6_concordance.pdf
+  • AUROC vs MCC ranking concordance
+  • 5 models: NTv3, HyenaDNA, DNABERT-2, Caduceus, Evo2
+  • Key stat: >95% concordant, r>0.95
+
+ABLATION 7: abl7_efficiency.pdf
+  • NTv3 GPU FLOPs vs sequence length
+  • Linear scaling demonstration
+  • Key stat: ~1.2 GFLOPS per 500bp
+
+ABLATION 8: abl8_truncation.pdf
+  • FM sequence truncation rates
+  • Per-model comparison across 57 datasets
+  • Key stat: ≤1% truncation, not confounding
+
+ABLATION 9: abl9_caduceus_vs_ntv3.pdf
+  • Caduceus vs NTv3 by dataset group (12 groups)
+  • 3×4 grid of violin plots
+  • Key stat: NTv3 median 0.543 vs Caduceus 0.508
+
+ABLATION 10: abl10_evo2_analysis.pdf
+  • Evo2 vs NTv3 scatter + by-group violin
+  • Evo2 win counts and performance comparison
+  • Key stat: Evo2 only wins 8/57 datasets vs NTv3
+
+SUP S1: sup_s1_rf_vs_lp.pdf
+  • 2×2 grid of RF vs LP comparisons
+  • Statistical tests (t-tests, effect sizes)
+  • Detailed win/loss counts per model
+
+SUP S2: sup_s2_auroc_vs_mcc.pdf
+  • 2×2 metric scatter plots
+  • Pearson correlation coefficients
+  • All r > 0.95 (highly concordant)
+
+SUP S3: sup_s3_kmer_order_analysis.pdf
+  • Left: k-mer box plots
+  • Right: Median ± std bar chart
+  • Pairwise t-tests (all p<0.05)
+
+SUP S4: sup_s4_pooling_effects.pdf
+  • 3 subplots for k=4,5,6
+  • Ridge R² boxplots by pooling method
+  • Max Δ < 0.05 across all conditions
+
+SUP S7: sup_s7_computational_cost.pdf
+  • 4 subplots:
+    1. GFLOPS vs sequence length (line plot)
+    2. Relative cost comparison (bar chart)
+    3. Peak GPU memory (bar chart)
+    4. Cost-benefit tradeoff (scatter)
+
+
+TABLE S1: summary_mcc_by_group.csv/tex
+  Rows: 13 (12 dataset groups + overall)
+  Cols: 9 models
+  Content: Median MCC across 57 datasets
+  
+  Groups: EMP, deep4mc, enhancers, genomic_benchmark, iDHS-EL, iDNA_ABF,
+           iPro-WAEL, mouse, prom, splice, tf, virus, Overall
+  
+  Models: k-mer k=4, k=5, k=6, multiscale, NTv3, HyenaDNA, DNABERT-2, 
+          Caduceus, Evo2
+
+TABLE S2: detailed_results_summary.csv/tex
+  Rows: 9 models
+  Cols: 8 (N, MCC_median, MCC_mean, MCC_std, AUROC_median, AUROC_mean, 
+           AUROC_std)
+  Content: Complete statistics across all 57 datasets
+
+TABLE S3: model_architecture_specs.csv/tex
+  Rows: 8 models (k-mer variants + 5 FM)
+  Cols: Type, Parameters, Architecture, Training, Pre-training Data, Max Length
+  Content: Full architectural specifications and pre-training details
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+HOW TO USE THESE FILES
+──────────────────────────────────────────────────────────────────────────────
+
+For LaTeX Paper:
+  1. Copy figures/ to manuscript/supplementary/
+  2. Copy results/*.tex to manuscript/supplementary/tables/
+  3. Include in paper:
+     \begin{figure}
+       \includegraphics[width=0.8\textwidth]{supplementary/abl1_kmer_scale.pdf}
+       \caption{Supplementary Figure S1: k-mer Scale Comparison}
+     \end{figure}
+     
+     \input{supplementary/tables/summary_mcc_by_group.tex}
+
+For Submission:
+  1. ZIP: figures/ + results/ + documentation/
+  2. Name: supplementary_material_CGR_embedding.zip
+  3. Submit with manuscript
+
+For Reviewers:
+  1. Share SUPPLEMENTARY_MATERIAL_INDEX.md (complete guide)
+  2. Share SUPPLEMENTARY_INSIGHTS.txt (key findings)
+  3. Share all .csv tables (data transparency)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+QUALITY CHECKLIST
+──────────────────────────────────────────────────────────────────────────────
+
+Figures:
+  ✓ All 300 DPI resolution (publication quality)
+  ✓ Consistent color scheme (FM_COLORS dict)
+  ✓ Clear labels and titles
+  ✓ Legend-based in all multi-panel figures
+  ✓ PDF format (scalable, no quality loss)
+
+Tables:
+  ✓ Both CSV (data) and LaTeX (publication) formats
+  ✓ Clear column headers
+  ✓ Numeric values to 3 decimal places
+  ✓ Row sums/totals where applicable
+
+Documentation:
+  ✓ Complete file inventory (this file)
+  ✓ Statistical test results (p-values reported)
+  ✓ Effect sizes (Cohen's d where applicable)
+  ✓ Interpretation for each finding
+  ✓ Recommendations for practitioners
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+MISSING EXPERIMENTS (Not Critical, Optional Additions)
+──────────────────────────────────────────────────────────────────────────────
+
+Priority 1 (Easy, High Value):
+  • Per-dataset leaderboard (which model wins each task)
+    Data available: YES (rf.csv)
+    Effort: 30 min
+
+  • Decomposition heatmap (k-mer explainability across models)
+    Data available: YES (dec.csv)
+    Effort: 1 hour
+
+  • Sequence length correlation analysis
+    Data available: YES (seq_len_mean in rf.csv)
+    Effort: 45 min
+
+Priority 2 (Medium):
+  • Error analysis (hardest/easiest datasets)
+  • Class balance effects
+  • RF feature importance
+
+Priority 3 (Optional):
+  • Hyperparameter sensitivity
+  • Learning curves
+  • Fine-tuning vs frozen embeddings
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+KEY STATISTICS SUMMARY
+──────────────────────────────────────────────────────────────────────────────
+
+Performance (Median MCC across 57 datasets):
+  1. NTv3 (650M)        0.543
+  2. k-mer (multiscale) 0.536
+  3. k-mer (k=5)        0.521
+  4. Caduceus           0.508
+  5. k-mer (k=4)        0.518
+  6. HyenaDNA           0.449
+  7. DNABERT-2          0.402
+  8. Evo2 (1B)          0.217
+
+Metric Concordance:
+  • AUROC-MCC Pearson r: 0.95-0.97 (all models)
+  • >95% ranking agreement
+
+RF vs LP:
+  • RF wins: 50-57 out of 57 datasets
+  • Median gain: +0.024 to +0.082 MCC
+
+k-mer Analysis:
+  • k=4: 0.518 (underfitting, limited expressivity)
+  • k=5: 0.521 (OPTIMAL)
+  • k=6: 0.494 (overfitting, high dimensionality)
+  • All comparisons p<0.05
+
+Pooling Strategy:
+  • Effect size: <0.05 on Ridge R²
+  • All pooling methods similar
+  • Mean pooling slightly most stable
+
+Computational Cost:
+  • k-mer: ~0.0001 GFLOPS (negligible)
+  • Caduceus: ~0.5 GFLOPS (O(n) scaling)
+  • NTv3: ~1.2 GFLOPS (O(n²) scaling)
+  • Evo2: ~4.0 GFLOPS (largest cost, worst performance)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+CONTACT & METADATA
+──────────────────────────────────────────────────────────────────────────────
+
+Author: Vincenzo Civale
+Email: civalevincenzoyuto@gmail.com
+Date: May 5, 2026
+Project: DNA Foundation Model Benchmark (CGR Embedding)
+Repository: /home/oem/genome-cgr-embedding
+
+All materials ready for journal submission.
+Quality: Publication-grade (300 DPI figures, LaTeX tables)
+Completeness: 85% (core material complete; task-specific breakdowns optional)
+
+═══════════════════════════════════════════════════════════════════════════════

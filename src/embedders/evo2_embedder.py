@@ -108,6 +108,9 @@ class _Evo2Base:
 
         print(f"Loading Evo2 {model_name} ...")
         self.evo2 = Evo2(model_name)
+
+        # Convert model to bfloat16 to save memory
+        self.evo2.model = self.evo2.model.to(torch.bfloat16)
         self.evo2.model.eval()
         self.tokenizer = self.evo2.tokenizer
         self.pad_id = _get_pad_id(self.tokenizer)
