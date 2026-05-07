@@ -197,13 +197,13 @@ class Evo2Embedder(_Evo2Base):
                 input_ids, lengths = self._tokenize_batch(batch_seqs)
                 input_ids = input_ids.to(self.device)
 
-                with torch.no_grad():
+                with torch.inference_mode():
                     _, embeddings = self.evo2(
                         input_ids, return_embeddings=True, layer_names=[self.layer_name]
                     )
                 hidden = embeddings[self.layer_name]
                 pooled = _mean_pool(hidden, lengths)
-                all_embs.append(pooled.detach().cpu().to(torch.float16).numpy())
+                all_embs.append(pooled.cpu().to(torch.float16).numpy())
                 progress.update(len(batch_seqs))
                 start = end
 

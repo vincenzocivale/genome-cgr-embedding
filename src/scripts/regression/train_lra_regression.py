@@ -25,12 +25,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import gc
 import os
 import sys
 import time
 
 import numpy as np
 import pandas as pd
+import torch
 from pyfaidx import Fasta
 from scipy.stats import spearmanr
 from sklearn.ensemble import RandomForestRegressor
@@ -42,7 +44,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from src.features.kmer_features import extract_kmer_features
 
 LRA_DIR     = "/data/genomics-long-range-benchmark"
-HG38_FA     = "/home/oem/Scrivania/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta"
+HG38_FA     = os.environ.get("HG38_FA", "data/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta")
 RECORDS_CSV = "results/regression_records.csv"
 
 _RF_PARAM_GRID = {
@@ -220,11 +222,12 @@ def load_bulk_rna_expression(genome, seq_len=100_000, max_train=None):
 
 # ── embedder factory ──────────────────────────────────────────────────────────
 
-def make_embedder(model_name, pooling="mean"):
+def make_embedder(model_name, pooling="mean", max_length=None):
     if model_name in _EVO2_MODELS or model_name.startswith("evo2_"):
         from src.embedders.evo2_embedder import Evo2Embedder
         return Evo2Embedder(model_name=model_name,
-                            cache_dir="cache/lra_fm_embeddings")
+                            cache_dir="cache/lra_fm_embeddings",
+                            max_length=max_length)
     if model_name.lower().startswith("google/enformer"):
         from src.embedders.enformer_embedder import EnformerEmbedder
         return EnformerEmbedder(model_name=model_name, cache_dir="cache/lra_fm_embeddings")
@@ -258,6 +261,8 @@ def main():
     parser.add_argument("--hg38", default=HG38_FA)
     parser.add_argument("--max-train", type=int, default=None,
                         help="Cap training set size (for quick tests)")
+    parser.add_argument("--max-length", type=int, default=None,
+                        help="Truncate sequences to this length (for GPU memory constraints)")
     args = parser.parse_args()
 
     print(f"\nLRA Regression Benchmark")
@@ -275,7 +280,7 @@ def main():
     model_tag  = None
     if args.model:
         print(f"Loading FM model {args.model} ...")
-        embedder  = make_embedder(args.model, pooling=args.pooling)
+        embedder  = make_embedder(args.model, pooling=args.pooling, max_length=args.max_length)
         model_tag = args.model.split("/")[-1]
         print("Model loaded.\n")
 
@@ -327,6 +332,12 @@ def main():
             print(f"  FM {model_tag}: R2={m['R2']:.4f}  Spearman={m['Spearman']:.4f}  "
                   f"({time.perf_counter()-t0:.0f}s)")
             _write(task, col, m)
+
+            # Clean up memory for next task
+            del Y_tr, Y_te, rf, m
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     print(f"\nDone. Results in {RECORDS_CSV}")
 

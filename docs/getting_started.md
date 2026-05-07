@@ -27,6 +27,16 @@ Both files must contain:
 - `sequence`
 - `label`
 
+## Optional: Regression benchmark (LRA)
+
+The regression script (`src/scripts/regression/train_lra_regression.py`) requires
+the hg38 reference genome FASTA. Set the path via environment variable before running:
+
+```bash
+export HG38_FA=/path/to/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta
+python3 src/scripts/regression/train_lra_regression.py
+```
+
 ## Core commands
 
 ```bash
