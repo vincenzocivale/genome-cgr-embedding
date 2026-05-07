@@ -1,0 +1,32 @@
+{
+  "fm_models": {
+    "total_models": 5,
+    "total_comparisons": 285,
+    "avg_rf_performance": 0.4406498381956844,
+    "avg_lp_performance": 0.46071171054779514,
+    "avg_delta": -0.020061872352110807,
+    "total_rf_wins": 100,
+    "total_lp_wins": 184,
+    "models_where_rf_better": 1,
+    "models_where_lp_better": 4
+  },
+  "kmer_results": {
+    "kmer_sizes": [
+      4,
+      5,
+      6
+    ],
+    "avg_rf_performance": 0.5119663124719463,
+    "avg_lp_performance": 0.5051009655234541,
+    "avg_delta": 0.006865346948492283,
+    "total_rf_wins": 84,
+    "total_lp_wins": 87
+  },
+  "best_kmer": {
+    "rf_mean": 0.5349984333219209,
+    "lp_mean": 0.5309740951583806,
+    "delta_mean": 0.0040243381635403355,
+    "rf_wins": 26,
+    "lp_wins": 31
+  }
+}

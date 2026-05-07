@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f check_embedding_rank.py check_k6_features.py check_k6_kmer.py)",
+      "Bash(rm -f debug_evo2_ridge.py debug_r2_calculation.py)",
+      "Bash(rm -f quick_evo2_check.py understand_r2_bug.py test_exact_decomp.py)",
+      "Bash(rm -f create_kmer_boxplot.py gen_summary_table.py)",
+      "Bash(rm -f activations_debug.log)",
+      "Bash(sed -i 's|ROOT    = Path\\(\\\\x27/home/oem/genome-cgr-embedding\\\\x27\\)|ROOT    = Path\\(__file__\\).resolve\\(\\).parent.parent if \\\\\"__file__\\\\\" in dir\\(\\) else Path.cwd\\(\\).parent|g' /tmp/genome-cgr-embedding-submission/notebooks/paper_plots_main.ipynb)",
+      "Bash(sed -i 's|ROOT = Path\\(\\\\x27/home/oem/genome-cgr-embedding\\\\x27\\)|ROOT = Path\\(__file__\\).resolve\\(\\).parent.parent if \\\\\"__file__\\\\\" in dir\\(\\) else Path.cwd\\(\\).parent|g' /tmp/genome-cgr-embedding-submission/notebooks/paper_plots_main.ipynb)",
+      "Bash(sed -i 's|ROOT    = Path\\(\\\\x27/home/oem/genome-cgr-embedding\\\\x27\\)|ROOT    = Path\\(__file__\\).resolve\\(\\).parent.parent if \\\\\"__file__\\\\\" in dir\\(\\) else Path.cwd\\(\\).parent|g' /tmp/genome-cgr-embedding-submission/notebooks/paper_plots_supplementary_detailed.ipynb)",
+      "Bash(sed -i 's|ROOT = Path\\(\\\\x27/home/oem/genome-cgr-embedding\\\\x27\\)|ROOT = Path\\(__file__\\).resolve\\(\\).parent.parent if \\\\\"__file__\\\\\" in dir\\(\\) else Path.cwd\\(\\).parent|g' /tmp/genome-cgr-embedding-submission/notebooks/paper_plots_supplementary_detailed.ipynb)",
+      "Bash(sed -i 's|ROOT    = Path\\(__file__\\).resolve\\(\\).parent.parent if \"__file__\" in dir\\(\\) else Path.cwd\\(\\).parent|ROOT    = \\(Path.cwd\\(\\).parent if Path.cwd\\(\\).name == \"notebooks\" else Path.cwd\\(\\)\\)|g' /tmp/genome-cgr-embedding-submission/notebooks/paper_plots_main.ipynb)",
+      "Bash(sed -i 's|ROOT = Path\\(__file__\\).resolve\\(\\).parent.parent if \"__file__\" in dir\\(\\) else Path.cwd\\(\\).parent|ROOT = \\(Path.cwd\\(\\).parent if Path.cwd\\(\\).name == \"notebooks\" else Path.cwd\\(\\)\\)|g' /tmp/genome-cgr-embedding-submission/notebooks/paper_plots_main.ipynb)",
+      "Bash(sed -i 's|ROOT    = Path\\(__file__\\).resolve\\(\\).parent.parent if \"__file__\" in dir\\(\\) else Path.cwd\\(\\).parent|ROOT    = \\(Path.cwd\\(\\).parent if Path.cwd\\(\\).name == \"notebooks\" else Path.cwd\\(\\)\\)|g' /tmp/genome-cgr-embedding-submission/notebooks/paper_plots_supplementary_detailed.ipynb)",
+      "Bash(sed -i 's|ROOT = Path\\(__file__\\).resolve\\(\\).parent.parent if \"__file__\" in dir\\(\\) else Path.cwd\\(\\).parent|ROOT = \\(Path.cwd\\(\\).parent if Path.cwd\\(\\).name == \"notebooks\" else Path.cwd\\(\\)\\)|g' /tmp/genome-cgr-embedding-submission/notebooks/paper_plots_supplementary_detailed.ipynb)",
+      "Bash(echo \"Exit: $? \\(0 = clean\\)\")",
+      "Bash(PYTHONPATH=/tmp/genome-cgr-embedding-submission conda run -n cgr_bench python3 scripts/paper_stats_audit.py)",
+      "Bash(grep -v \"\\\\.pdf$\")",
+      "Bash(echo \"Exit: $? \\(1 = nessun match = pulito\\)\")",
+      "Bash(git -C /home/oem/genome-cgr-embedding show HEAD:scripts/export_paper_figures.py)",
+      "Bash(git -C /home/oem/genome-cgr-embedding show HEAD:scripts/paper_stats_audit.py)",
+      "Bash(git -C /home/oem/genome-cgr-embedding status --short)",
+      "Bash(echo \"Grep exit: $? \\(1 = nessun match = pulito\\)\")"
+    ]
+  }
+}

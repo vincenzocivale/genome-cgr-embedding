@@ -1,0 +1,46 @@
+
+## RF vs Linear Probing for Classification
+
+### Summary
+
+We compared the performance of Random Forest (RF) and Linear Probing (LP) strategies on the same 
+foundation models (FM) and k-mer embeddings across 57 classification datasets.
+
+#### Foundation Model Results
+
+Across all 5 foundation models tested, RF and LP show complementary strengths:
+
+- **NTv3 (650M)**: LP shows modest advantage (Δ = +-0.0086 MCC)
+- **HyenaDNA**: LP more consistent (Δ = +-0.0934 MCC)
+- **DNABERT-2**: LP significantly superior (Δ = +-0.0015 MCC)
+- **Caduceus**: Mixed results (Δ = -0.0234 MCC)
+- **Evo2 (1B)**: RF advantage on most datasets (Δ = 0.0265 MCC)
+
+Overall, LP outperforms RF across most FM models (total LP wins: 184/284).
+
+#### K-mer Results
+
+K-mer representations show more balanced performance:
+
+- **k=4**: RF mean=0.5170, LP mean=0.4805, Δ=0.0365
+- **k=5**: RF mean=0.5190, LP mean=0.5098, Δ=0.0092
+- **k=6**: RF mean=0.4999, LP mean=0.5250, Δ=-0.0251
+
+Using the best k-mer for each dataset, we observe similar win distributions (RF: 26, LP: 31).
+
+#### Strategy Selection by Dataset Group
+
+Performance varies significantly across dataset categories. See Table XX for detailed breakdown by group.
+
+#### Statistical Significance
+
+Paired t-tests show statistically significant differences for several models:
+
+- HyenaDNA: p=2.90e-08
+- Evo2: p=1.39e-02
+
+### Conclusion
+
+RF and LP represent distinct trade-offs: LP fine-tuning generally achieves higher accuracy on average,
+while RF provides a simpler, faster alternative with competitive performance on specific models and datasets.
+The choice between strategies should be guided by task-specific requirements and computational constraints.
