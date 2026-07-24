@@ -22,10 +22,13 @@ import torch
 from tqdm import tqdm
 
 from src.embedders.embedding_cache import get_device as _get_device
+from src.embedders.fm_embedder import FMEmbedder
 
 # The StripedHyena module that holds the normalised residual stream,
 # equivalent to last_hidden_state in encoder models.
 _DEFAULT_LAYER = "norm"
+
+_SUPPORTED_POOLINGS = {"mean", "max", "mean_max", "attention"}
 
 
 def _patch_fp8_for_device():
@@ -75,19 +78,15 @@ def _get_pad_id(tokenizer) -> int:
     return 0
 
 
-def _mean_pool(hidden: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
-    """Mean-pool (B, L, D) over the valid token positions."""
-    if hidden.dim() == 2:
-        return hidden
+def _build_mask(hidden: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+    """Build a (B, L, 1) validity mask over the valid token positions."""
     if hidden.dim() != 3:
         raise RuntimeError(f"Unexpected Evo2 embedding shape: {tuple(hidden.shape)}")
     device = hidden.device
     lengths = lengths.to(device)
     max_len = hidden.shape[1]
     mask = torch.arange(max_len, device=device)[None, :] < lengths[:, None]
-    mask = mask.unsqueeze(-1).to(hidden.dtype)
-    pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
-    return pooled
+    return mask.unsqueeze(-1).to(hidden.dtype)
 
 
 class _Evo2Base:
@@ -118,7 +117,8 @@ class _Evo2Base:
     def _cache_path(self, dataset_name: str, split: str) -> str:
         safe_model = self.model_name.replace("/", "__")
         safe_ds = dataset_name.replace("/", "__").replace("\\", "__")
-        return os.path.join(self.cache_dir, safe_model, safe_ds, f"{split}.npz")
+        pooling = getattr(self, "pooling", "mean")
+        return os.path.join(self.cache_dir, safe_model, f"pooling_{pooling}", safe_ds, f"{split}.npz")
 
     def _tokenize_batch(self, sequences: Iterable[str]) -> Tuple[torch.Tensor, torch.Tensor]:
         token_lists: list[list[int]] = []
@@ -157,8 +157,16 @@ class Evo2Embedder(_Evo2Base):
         layer_name: str | None = None,
         max_length: int | None = None,
         device: str | None = None,
+        pooling: str = "mean",
     ):
         super().__init__(model_name, cache_dir, max_length=max_length, device=device)
+        if pooling not in _SUPPORTED_POOLINGS:
+            raise ValueError(
+                f"pooling must be one of {sorted(_SUPPORTED_POOLINGS)} "
+                "(CLS pooling is not supported for Evo2: StripedHyena is "
+                "autoregressive and has no special-token convention)."
+            )
+        self.pooling = pooling
         self.layer_name = layer_name or _DEFAULT_LAYER
         # Validate that the layer exists in the model
         try:
@@ -202,7 +210,8 @@ class Evo2Embedder(_Evo2Base):
                         input_ids, return_embeddings=True, layer_names=[self.layer_name]
                     )
                 hidden = embeddings[self.layer_name]
-                pooled = _mean_pool(hidden, lengths)
+                mask = _build_mask(hidden, lengths)
+                pooled = FMEmbedder.pool_hidden(hidden, mask, self.pooling)
                 all_embs.append(pooled.cpu().to(torch.float16).numpy())
                 progress.update(len(batch_seqs))
                 start = end

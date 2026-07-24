@@ -50,16 +50,21 @@ def load_cached_embeddings(
             safe_ds,
             f"{split}.npz",
         ),
-        os.path.join("cache/fm_embeddings", safe_model, safe_ds, f"{split}.npz"),
-        os.path.join("cache/fm_embeddings", safe_ds, f"{split}.npz"),
     ]
+    if pooling == "mean":
+        # Pre-rebuttal caches predate the pooling-aware subdirectory and
+        # contain mean-pooled embeddings only; never use them as a stand-in
+        # for a non-mean pooling that hasn't been computed yet.
+        candidates.append(os.path.join("cache/fm_embeddings", safe_model, safe_ds, f"{split}.npz"))
+        candidates.append(os.path.join("cache/fm_embeddings", safe_ds, f"{split}.npz"))
     if "hyenadna" in model_name.lower():
         candidates.append(
             os.path.join("cache/hyena_embeddings", f"pooling_{pooling}", safe_ds, f"{split}.npz")
         )
-        candidates.append(
-            os.path.join("cache/hyena_embeddings", safe_ds, f"{split}.npz")
-        )
+        if pooling == "mean":
+            candidates.append(
+                os.path.join("cache/hyena_embeddings", safe_ds, f"{split}.npz")
+            )
     for path in candidates:
         if os.path.exists(path):
             return np.load(path)["embeddings"].astype(np.float32)

@@ -83,8 +83,8 @@ class FMEmbedder:
         self._char_level = _is_char_level(model_name)
         self.max_length = self._MAX_LENGTH.get(model_name, self._MAX_LENGTH_FALLBACK)
 
-        if self.pooling not in {"mean", "max", "cls"}:
-            raise ValueError("pooling must be one of: mean, max, cls")
+        if self.pooling not in {"mean", "max", "mean_max", "cls", "attention"}:
+            raise ValueError("pooling must be one of: mean, max, mean_max, cls, attention")
         if self.pooling == "cls" and self._char_level:
             raise ValueError(
                 "CLS pooling is not supported for char-level models (HyenaDNA/DNABERT-2 char mode)."
@@ -247,6 +247,33 @@ class FMEmbedder:
                 hidden = out.hidden_states[-1]
         return hidden
 
+    @staticmethod
+    def pool_hidden(hidden: torch.Tensor, mask: torch.Tensor, pooling: str) -> torch.Tensor:
+        """Pool token states. Attention is parameter-free content attention.
+
+        Its query is each sequence's masked mean, avoiding labels or a second
+        trainable head; this isolates the effect of retaining salient positions.
+        """
+        mean = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
+        if pooling == "mean":
+            return mean
+        if pooling == "max":
+            neg_inf = torch.finfo(hidden.dtype).min
+            result = hidden.masked_fill(mask == 0, neg_inf).max(dim=1).values
+            result[mask.sum(dim=1).squeeze(-1) == 0] = 0
+            return result
+        if pooling == "mean_max":
+            return torch.cat((mean, FMEmbedder.pool_hidden(hidden, mask, "max")), dim=1)
+        if pooling == "cls":
+            return hidden[:, 0, :]
+        if pooling == "attention":
+            query = torch.nn.functional.normalize(mean, dim=1).unsqueeze(-1)
+            scores = (hidden * query.transpose(1, 2)).sum(dim=-1) / (hidden.shape[-1] ** 0.5)
+            scores = scores.masked_fill(mask.squeeze(-1) == 0, torch.finfo(hidden.dtype).min)
+            weights = torch.softmax(scores, dim=1).unsqueeze(-1)
+            return (hidden * weights).sum(dim=1)
+        raise ValueError(f"Unsupported pooling: {pooling}")
+
     # ------------------------------------------------------------------
     def embed_sequences(
         self,
@@ -296,17 +323,7 @@ class FMEmbedder:
                 else:
                     mask = torch.ones_like(hidden[:, :, :1], dtype=hidden.dtype)
 
-                if self.pooling == "mean":
-                    pooled = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
-                elif self.pooling == "max":
-                    neg_inf = torch.finfo(hidden.dtype).min
-                    masked_hidden = hidden.masked_fill(mask == 0, neg_inf)
-                    pooled = masked_hidden.max(dim=1).values
-                    empty_rows = (mask.sum(dim=1).squeeze(-1) == 0)
-                    if empty_rows.any():
-                        pooled[empty_rows] = 0
-                else:  # cls
-                    pooled = hidden[:, 0, :]
+                pooled = self.pool_hidden(hidden, mask, self.pooling)
 
                 all_embs.append(pooled.cpu().float().numpy())
                 progress.update(len(batch_seqs))
@@ -338,3 +355,54 @@ class FMEmbedder:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         np.savez_compressed(path, embeddings=embeddings)
         return embeddings
+
+    def embed_sequences_layers(
+        self, sequences: np.ndarray, fractions: tuple[float, ...] = (0.25, 0.5, 0.75, 1.0),
+        batch_size: int = 32, pooling: str | None = None,
+    ) -> dict[int, np.ndarray]:
+        """Pool selected hidden layers for E6 (layer 0 is the input state).
+
+        This deliberately returns arrays to the caller rather than silently
+        mixing them into the last-layer cache.  The caller records exact layer
+        indices in its tidy E6 table, making depth sampling auditable.
+        """
+        pooling = pooling or self.pooling
+        if pooling == "cls" and self._char_level:
+            raise ValueError("CLS pooling is unavailable for char-level models.")
+        outputs: dict[int, list[np.ndarray]] = {}
+        selected: list[int] | None = None
+        pad_id = self.tokenizer.pad_token_id
+        for start in tqdm(range(0, len(sequences), batch_size), desc="FM [layerwise]"):
+            tokens = self._tokenize(sequences[start:start + batch_size].tolist())
+            input_ids, attention_mask = tokens["input_ids"].to(self.device), tokens.get("attention_mask")
+            if attention_mask is not None:
+                attention_mask = attention_mask.to(self.device)
+            with torch.no_grad():
+                out = self.model(input_ids, attention_mask=attention_mask, output_hidden_states=True)
+            states = out.hidden_states if hasattr(out, "hidden_states") else out[-1]
+            if states is None:
+                raise RuntimeError("Model did not return hidden states required for layer-wise analysis.")
+            if selected is None:
+                # Include the earliest state plus sampled fractions of learned depth.
+                final = len(states) - 1
+                selected = sorted({0, *(max(1, min(final, round(final * f))) for f in fractions)})
+                outputs = {layer: [] for layer in selected}
+            if attention_mask is not None:
+                mask = attention_mask.unsqueeze(-1).to(states[0].dtype)
+            elif pad_id is not None:
+                mask = (input_ids != pad_id).unsqueeze(-1).to(states[0].dtype)
+            else:
+                mask = torch.ones_like(states[0][:, :, :1])
+            for layer in selected:
+                # NTv3's U-shaped encoder exposes down-/up-sampled hidden
+                # states.  Rebin the token-validity mask to the state length
+                # rather than treating padded input tokens as signal.
+                state = states[layer]
+                if state.shape[1] != mask.shape[1]:
+                    state_mask = torch.nn.functional.adaptive_max_pool1d(
+                        mask.transpose(1, 2).float(), state.shape[1]
+                    ).transpose(1, 2).to(state.dtype)
+                else:
+                    state_mask = mask.to(state.dtype)
+                outputs[layer].append(self.pool_hidden(state, state_mask, pooling).cpu().float().numpy())
+        return {layer: np.concatenate(chunks, axis=0).astype(np.float32) for layer, chunks in outputs.items()}

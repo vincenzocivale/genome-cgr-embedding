@@ -4,6 +4,7 @@ __pycache__/
 
 cache/
 /data/dna_foundation_benchmark/
+results/
 
 *.log
 *.lock

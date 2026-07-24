@@ -40,6 +40,22 @@ def _best_kmer(df: pd.DataFrame, metric: str, prefix: str = "kmer") -> pd.Series
     return df[cols].max(axis=1)
 
 
+def _select_kmer(df: pd.DataFrame, metric: str, prefix: str = "kmer", mode: str = "best") -> pd.Series:
+    """
+    Per-dataset k-mer metric under a given selection mode.
+
+    mode="best": max across k values (post-hoc, test-set informed best-k).
+    mode="k4"/"k5"/"k6"/...: a single fixed k applied uniformly to every dataset
+    (rebuttal E1 robustness check — see src/rebuttal/e1_fixed_k/).
+    """
+    if mode == "best":
+        return _best_kmer(df, metric, prefix)
+    col = f"{prefix}_{mode}_{metric}"
+    if col not in df.columns:
+        return pd.Series(dtype=float)
+    return df[col].dropna()
+
+
 def _detect_fm_configs(df: pd.DataFrame, metric: str) -> list[tuple[str, str]]:
     """
     Detect all FM configurations in the dataframe.
@@ -77,9 +93,13 @@ def run_fdr_analysis(
     metric: str = "MCC",
     kmer_prefix: str = "kmer",
     output_path: str = FDR_RESULTS_CSV,
+    kmer_mode: str = "best",
 ) -> pd.DataFrame:
     """
-    Run FDR analysis for all FM models vs best k-mer.
+    Run FDR analysis for all FM models vs k-mer.
+
+    kmer_mode: "best" (default, max across k=4,5,6) or a fixed mode ("k4"/"k5"/"k6")
+    applied uniformly to every dataset (see src/rebuttal/e1_fixed_k/).
 
     Returns DataFrame with columns:
         comparison, n_datasets, mean_delta, median_delta,
@@ -92,9 +112,9 @@ def run_fdr_analysis(
     df = pd.read_csv(records_path, index_col=0)
     print(f"\n  Loaded {len(df)} datasets from {records_path}")
 
-    best_kmer = _best_kmer(df, metric, kmer_prefix)
+    best_kmer = _select_kmer(df, metric, kmer_prefix, kmer_mode)
     if best_kmer.empty:
-        print(f"  No k-mer columns found for metric={metric}")
+        print(f"  No k-mer columns found for metric={metric} mode={kmer_mode}")
         return pd.DataFrame()
 
     fm_configs = _detect_fm_configs(df, metric)

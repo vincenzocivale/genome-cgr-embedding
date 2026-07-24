@@ -86,6 +86,16 @@ def ridge_multi_col(k_values: tuple[int, ...], model_name: str, metric: str) -> 
     return f"ridge_multi_k{tag}_{_model_tag(model_name)}_{metric}"
 
 
+def proj_multi_col(k_values: tuple[int, ...], model_name: str, metric: str) -> str:
+    tag = "_".join(str(k) for k in sorted(k_values))
+    return f"proj_multi_k{tag}_{_model_tag(model_name)}_{metric}"
+
+
+def resid_multi_col(k_values: tuple[int, ...], model_name: str, metric: str) -> str:
+    tag = "_".join(str(k) for k in sorted(k_values))
+    return f"resid_multi_k{tag}_{_model_tag(model_name)}_{metric}"
+
+
 def mi_kmer_col(k: int) -> str:
     return f"mi_kmer_k{k}"
 
@@ -210,6 +220,22 @@ def has_ridge_multi(dataset: str, k_values: tuple[int, ...],
     if df.empty or dataset not in df.index:
         return False
     col = ridge_multi_col(k_values, model_name, RIDGE_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_proj_multi(dataset: str, k_values: tuple[int, ...],
+                   model_name: str, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = proj_multi_col(k_values, model_name, RF_METRICS[0])
+    return col in df.columns and pd.notna(df.loc[dataset, col])
+
+
+def has_resid_multi(dataset: str, k_values: tuple[int, ...],
+                    model_name: str, df: pd.DataFrame) -> bool:
+    if df.empty or dataset not in df.index:
+        return False
+    col = resid_multi_col(k_values, model_name, RF_METRICS[0])
     return col in df.columns and pd.notna(df.loc[dataset, col])
 
 
@@ -433,12 +459,53 @@ def write_wms(dataset: str, k_values: tuple[int, ...], weighting: str,
 
 
 def write_ridge_multi(dataset: str, k_values: tuple[int, ...], model_name: str,
-                      ridge_metrics: dict, path: str = RECORDS_CSV) -> pd.DataFrame:
+                      ridge_metrics: dict, path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
     """ridge_metrics keys: R2, MSE"""
-    df = _ensure_row(load_records(path), dataset)
-    for m in RIDGE_METRICS:
-        df.loc[dataset, ridge_multi_col(k_values, model_name, m)] = ridge_metrics[m]
-    _save(df, path)
+    lock_path = f"{path}.lock"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(lock_path, "a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            df = _ensure_row(load_decomp_records(path), dataset)
+            for m in RIDGE_METRICS:
+                df.loc[dataset, ridge_multi_col(k_values, model_name, m)] = ridge_metrics[m]
+            _save(df, path)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+    return df
+
+
+def write_proj_multi(dataset: str, k_values: tuple[int, ...], model_name: str,
+                     rf_metrics: dict, path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC"""
+    lock_path = f"{path}.lock"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(lock_path, "a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            df = _ensure_row(load_decomp_records(path), dataset)
+            for m in DECOMP_RF_METRICS:
+                df.loc[dataset, proj_multi_col(k_values, model_name, m)] = rf_metrics[m]
+            _save(df, path)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
+    return df
+
+
+def write_resid_multi(dataset: str, k_values: tuple[int, ...], model_name: str,
+                      rf_metrics: dict, path: str = RECORDS_DECOMP_CSV) -> pd.DataFrame:
+    """rf_metrics keys: MCC, AUROC"""
+    lock_path = f"{path}.lock"
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(lock_path, "a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            df = _ensure_row(load_decomp_records(path), dataset)
+            for m in DECOMP_RF_METRICS:
+                df.loc[dataset, resid_multi_col(k_values, model_name, m)] = rf_metrics[m]
+            _save(df, path)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
     return df
 
 
