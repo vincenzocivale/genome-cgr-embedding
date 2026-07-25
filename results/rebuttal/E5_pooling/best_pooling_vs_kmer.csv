@@ -1,0 +1,3 @@
+dataset,model,pooling,probe,feature_dim,n_train,n_test,n_classes,seed,cv_folds,tuning_candidates,selection_metric,cv_score,best_params,MCC,AUROC,F1,Accuracy,task_group,kmer_MCC
+iDHS-EL/DNase_I,InstaDeepAI/NTv3_650M_pre,mean,linear,1536,711,306,2,42,4,4,roc_auc,0.847171135896219,"{'clf__C': 0.01, 'clf__penalty': 'l2'}",0.6718146718146718,0.8703882453882454,0.8359073359073359,0.869281045751634,regulatory,0.5462001909366456
+EMP/Yeast_H3,InstaDeepAI/NTv3_650M_pre,mean,linear,1536,10475,4490,2,42,4,4,roc_auc,0.949234365863486,"{'clf__C': 0.01, 'clf__penalty': 'l2'}",0.78964775380875,0.9553442525312686,0.8947662381204347,0.8948775055679288,other,0.6227276392763244
