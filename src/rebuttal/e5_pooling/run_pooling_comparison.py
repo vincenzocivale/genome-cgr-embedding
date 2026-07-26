@@ -28,8 +28,10 @@ def main():
     if a.datasets: datasets = [d for d in datasets if d["name"] in a.datasets]
     for model_name in a.models:
         for pooling in a.poolings:
-            # Char-level / autoregressive models have no special CLS token; report this explicitly.
-            if pooling == "cls" and any(x in model_name.lower() for x in ("hyenadna", "dnabert", "caduceus", "evo2")):
+            # These tokenizers never prepend a CLS token at position 0 (verified
+            # empirically), so CLS pooling is not applicable.  DNABERT-2 is NOT
+            # in this list: it is a BERT/BPE model that genuinely prepends [CLS].
+            if pooling == "cls" and any(x in model_name.lower() for x in ("hyenadna", "caduceus", "evo2")):
                 print(f"[not applicable] {model_name} / cls"); continue
             embedder = None
             for ds in datasets:

@@ -85,15 +85,29 @@ class FMEmbedder:
 
         if self.pooling not in {"mean", "max", "mean_max", "cls", "attention"}:
             raise ValueError("pooling must be one of: mean, max, mean_max, cls, attention")
-        if self.pooling == "cls" and self._char_level:
-            raise ValueError(
-                "CLS pooling is not supported for char-level models (HyenaDNA/DNABERT-2 char mode)."
-            )
 
         print(f"Loading model {model_name} on {self.device} ...")
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True
         )
+        # CLS pooling reads hidden[:, 0, :], so it is only meaningful if the
+        # tokenizer actually places a CLS token at position 0.  Several DNA
+        # models declare a cls_token in the vocabulary but never prepend it
+        # (NTv3, HyenaDNA, Caduceus append/skip specials instead), so decide
+        # empirically rather than from a hardcoded char-level guess: DNABERT-2
+        # genuinely prepends [CLS], the others do not.
+        _probe_ids = self.tokenizer("ACGT", add_special_tokens=True)["input_ids"]
+        self._has_prepended_cls = (
+            self.tokenizer.cls_token_id is not None
+            and len(_probe_ids) > 0
+            and _probe_ids[0] == self.tokenizer.cls_token_id
+        )
+        if self.pooling == "cls" and not self._has_prepended_cls:
+            raise ValueError(
+                f"CLS pooling requires a tokenizer that prepends a CLS token at "
+                f"position 0; '{model_name}' does not (cls_token_id="
+                f"{self.tokenizer.cls_token_id}, first token id={_probe_ids[0] if _probe_ids else None})."
+            )
         # bfloat16 on CUDA (NTv3 internally only autocasts to bfloat16); fp32 on CPU/MPS.
         # DNABERT-2 custom attention layers mix dtypes under bfloat16 → force fp32.
         _force_fp32 = _is_automodel(model_name) and "DNABERT" in model_name
