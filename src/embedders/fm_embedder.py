@@ -83,8 +83,8 @@ class FMEmbedder:
         self._char_level = _is_char_level(model_name)
         self.max_length = self._MAX_LENGTH.get(model_name, self._MAX_LENGTH_FALLBACK)
 
-        if self.pooling not in {"mean", "max", "mean_max", "cls", "attention"}:
-            raise ValueError("pooling must be one of: mean, max, mean_max, cls, attention")
+        if self.pooling not in {"mean", "max", "mean_max", "cls", "attention", "last_token"}:
+            raise ValueError("pooling must be one of: mean, max, mean_max, cls, attention, last_token")
 
         print(f"Loading model {model_name} on {self.device} ...")
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -107,6 +107,19 @@ class FMEmbedder:
                 f"CLS pooling requires a tokenizer that prepends a CLS token at "
                 f"position 0; '{model_name}' does not (cls_token_id="
                 f"{self.tokenizer.cls_token_id}, first token id={_probe_ids[0] if _probe_ids else None})."
+            )
+        # last_token pooling reads the final valid position, meaningful as a
+        # CLS-equivalent only if the tokenizer appends a genuine special token
+        # (SEP/EOS) there.  Autoregressive models (HyenaDNA/Evo2) append [SEP]
+        # and their last token is the natural sequence summary; Caduceus also
+        # appends [SEP].  NTv3 appends nothing, so it has no last-token summary.
+        _special_ids = set(self.tokenizer.all_special_ids)
+        self._appends_special_last = len(_probe_ids) > 0 and _probe_ids[-1] in _special_ids
+        if self.pooling == "last_token" and not self._appends_special_last:
+            raise ValueError(
+                f"last_token pooling requires a tokenizer that appends a special "
+                f"summary token (SEP/EOS) at the end; '{model_name}' does not "
+                f"(last token id={_probe_ids[-1] if _probe_ids else None} is not special)."
             )
         # bfloat16 on CUDA (NTv3 internally only autocasts to bfloat16); fp32 on CPU/MPS.
         # DNABERT-2 custom attention layers mix dtypes under bfloat16 → force fp32.
@@ -215,7 +228,7 @@ class FMEmbedder:
     # ------------------------------------------------------------------
     def _tokenize(self, batch_seqs: list[str]) -> dict[str, torch.Tensor]:
         """Tokenize a batch of sequences and return tokenizer tensors on CPU."""
-        add_special_tokens = self.pooling == "cls"
+        add_special_tokens = self.pooling in ("cls", "last_token")
         if self._char_level:
             # HyenaDNA: char-level, no padding to multiple-of-128
             tokens = self.tokenizer(
@@ -280,6 +293,14 @@ class FMEmbedder:
             return torch.cat((mean, FMEmbedder.pool_hidden(hidden, mask, "max")), dim=1)
         if pooling == "cls":
             return hidden[:, 0, :]
+        if pooling == "last_token":
+            # Hidden state at the last valid (non-pad) position — the appended
+            # SEP/EOS token.  Computed from the mask so it is correct under both
+            # left- and right-padding: position*mask peaks at the last valid idx.
+            L = hidden.shape[1]
+            pos = torch.arange(L, device=hidden.device, dtype=hidden.dtype)
+            last_idx = (mask.squeeze(-1) * pos).argmax(dim=1)
+            return hidden[torch.arange(hidden.shape[0], device=hidden.device), last_idx]
         if pooling == "attention":
             query = torch.nn.functional.normalize(mean, dim=1).unsqueeze(-1)
             scores = (hidden * query.transpose(1, 2)).sum(dim=-1) / (hidden.shape[-1] ** 0.5)
