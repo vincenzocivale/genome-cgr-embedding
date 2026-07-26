@@ -3,10 +3,10 @@ InstaDeepAI/NTv3_650M_pre,attention,linear,other,0.36320958916058244
 InstaDeepAI/NTv3_650M_pre,attention,linear,promoter,0.6252841921351439
 InstaDeepAI/NTv3_650M_pre,attention,linear,regulatory,0.3793087376070376
 InstaDeepAI/NTv3_650M_pre,attention,linear,splice-site,0.4173695283522685
-InstaDeepAI/NTv3_650M_pre,cls,linear,other,0.32611920004785927
-InstaDeepAI/NTv3_650M_pre,cls,linear,promoter,0.608836417009813
-InstaDeepAI/NTv3_650M_pre,cls,linear,regulatory,0.3696537601804939
-InstaDeepAI/NTv3_650M_pre,cls,linear,splice-site,0.2994217886417566
+InstaDeepAI/NTv3_650M_pre,first_token,linear,other,0.32611920004785927
+InstaDeepAI/NTv3_650M_pre,first_token,linear,promoter,0.608836417009813
+InstaDeepAI/NTv3_650M_pre,first_token,linear,regulatory,0.3696537601804939
+InstaDeepAI/NTv3_650M_pre,first_token,linear,splice-site,0.2994217886417566
 InstaDeepAI/NTv3_650M_pre,max,linear,other,0.4619787306734991
 InstaDeepAI/NTv3_650M_pre,max,linear,promoter,0.7287548131408644
 InstaDeepAI/NTv3_650M_pre,max,linear,regulatory,0.5210437595353261
@@ -23,6 +23,10 @@ LongSafari/hyenadna-medium-160k-seqlen-hf,attention,linear,other,0.3846170207671
 LongSafari/hyenadna-medium-160k-seqlen-hf,attention,linear,promoter,0.7105373552562809
 LongSafari/hyenadna-medium-160k-seqlen-hf,attention,linear,regulatory,0.4556426421223287
 LongSafari/hyenadna-medium-160k-seqlen-hf,attention,linear,splice-site,0.38208400662412884
+LongSafari/hyenadna-medium-160k-seqlen-hf,last_token,linear,other,0.2126966069763862
+LongSafari/hyenadna-medium-160k-seqlen-hf,last_token,linear,promoter,0.5593121660150518
+LongSafari/hyenadna-medium-160k-seqlen-hf,last_token,linear,regulatory,0.3236675333312403
+LongSafari/hyenadna-medium-160k-seqlen-hf,last_token,linear,splice-site,0.13000475178331994
 LongSafari/hyenadna-medium-160k-seqlen-hf,max,linear,other,0.3077238759704215
 LongSafari/hyenadna-medium-160k-seqlen-hf,max,linear,promoter,0.6309560640302272
 LongSafari/hyenadna-medium-160k-seqlen-hf,max,linear,regulatory,0.38516130010081523
@@ -39,6 +43,10 @@ kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,attention,linear,o
 kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,attention,linear,promoter,0.7252295628272932
 kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,attention,linear,regulatory,0.49463320891963086
 kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,attention,linear,splice-site,0.42904891334133377
+kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,last_token,linear,other,0.31879070358239325
+kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,last_token,linear,promoter,0.6139579908924316
+kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,last_token,linear,regulatory,0.3737428289689249
+kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,last_token,linear,splice-site,0.17184760913560373
 kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,max,linear,other,0.36025087601126515
 kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,max,linear,promoter,0.6774828045140068
 kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,max,linear,regulatory,0.4461726476594619
@@ -55,6 +63,10 @@ zhihan1996/DNABERT-2-117M,attention,linear,other,0.3377324148694334
 zhihan1996/DNABERT-2-117M,attention,linear,promoter,0.6267612256517628
 zhihan1996/DNABERT-2-117M,attention,linear,regulatory,0.4008868238320627
 zhihan1996/DNABERT-2-117M,attention,linear,splice-site,0.27851178731218157
+zhihan1996/DNABERT-2-117M,cls,linear,other,0.35532341730669936
+zhihan1996/DNABERT-2-117M,cls,linear,promoter,0.664189710991215
+zhihan1996/DNABERT-2-117M,cls,linear,regulatory,0.41824216488435506
+zhihan1996/DNABERT-2-117M,cls,linear,splice-site,0.46372986643268654
 zhihan1996/DNABERT-2-117M,max,linear,other,0.28975033759433544
 zhihan1996/DNABERT-2-117M,max,linear,promoter,0.5824523783968252
 zhihan1996/DNABERT-2-117M,max,linear,regulatory,0.35789735991576865

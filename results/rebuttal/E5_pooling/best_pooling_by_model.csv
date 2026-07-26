@@ -1,5 +1,5 @@
 index,model,pooling,probe,mean,median,count
 3,InstaDeepAI/NTv3_650M_pre,mean,linear,0.6016036631151325,0.594718959356351,57
-7,LongSafari/hyenadna-medium-160k-seqlen-hf,mean,linear,0.546350802722797,0.522184935592669,57
-11,kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,mean,linear,0.5587381006832371,0.5407620555269818,57
-13,zhihan1996/DNABERT-2-117M,attention,linear,0.42847232020049714,0.3989997975824238,57
+8,LongSafari/hyenadna-medium-160k-seqlen-hf,mean,linear,0.546350802722797,0.522184935592669,57
+13,kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16,mean,linear,0.5587381006832371,0.5407620555269818,57
+16,zhihan1996/DNABERT-2-117M,cls,linear,0.46297673152760865,0.4651699101326357,57
